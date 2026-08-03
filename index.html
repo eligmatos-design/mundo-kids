@@ -1,0 +1,337 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#FFB6C1">
+  <title>Mundo Kids - Seu mundo, seu avatar!</title>
+  <link rel="manifest" href="/manifest.json">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+
+<!-- INICIO -->
+<section id="tela-inicio" class="tela ativa">
+  <div class="bg-aw"></div>
+  <div class="conteudo-centro">
+    <div class="logo-aw">MUNDO<span>KIDS</span></div>
+    <p class="subtitulo">Crie seu avatar - Decore sua casa - Explore!</p>
+    <div class="botoes-principais">
+      <button class="btn-aw btn-play" id="btn-entrar">JOGAR</button>
+      <button class="btn-aw btn-sec" id="btn-criar">Criar mundo</button>
+    </div>
+    <div class="selos">
+      <span>Avatar</span><span>Casa</span><span>Escola</span>
+      <span>Loja</span><span>Pets</span><span>Fazenda</span>
+    </div>
+  </div>
+</section>
+
+<!-- CRIAR -->
+<section id="tela-criar" class="tela">
+  <button class="btn-voltar" data-voltar>X</button>
+  <div class="painel">
+    <h2>Criar mundo</h2>
+    <label>Nome da crianca</label>
+    <input id="input-nome-crianca" type="text" placeholder="Maria" maxlength="16">
+    <label>PIN dos pais</label>
+    <input id="input-pin" type="tel" placeholder="1234" maxlength="6" inputmode="numeric">
+    <button class="btn-aw btn-play" id="btn-confirmar-criar">Criar!</button>
+    <div id="resultado-criar" class="resultado oculto">
+      <p class="ok">Mundo criado!</p>
+      <div class="codigo-grande" id="codigo-criado"></div>
+      <button class="btn-aw btn-play" id="btn-jogar-criado">Jogar agora!</button>
+    </div>
+  </div>
+</section>
+
+<!-- CRIADOR DE AVATAR -->
+<section id="tela-entrar" class="tela">
+  <button class="btn-voltar" data-voltar>X</button>
+  <div class="criador-aw">
+    <div class="preview-area">
+      <canvas id="preview-avatar"></canvas>
+      <p class="preview-label">Seu avatar</p>
+      <p class="preview-dica">Arraste aqui para girar o boneco</p>
+    </div>
+
+    <div class="criador-opcoes">
+      <label>Codigo do mundo</label>
+      <input id="input-codigo" type="text" placeholder="MUNDO-ABC123" maxlength="12" style="text-transform:uppercase">
+      <label>Nome</label>
+      <input id="input-nome" type="text" placeholder="Seu nome" maxlength="16">
+
+      <div class="abas-criador">
+        <button class="aba ativa" data-aba="corpo">Corpo</button>
+        <button class="aba" data-aba="rosto">Rosto</button>
+        <button class="aba" data-aba="cabelo">Cabelo</button>
+        <button class="aba" data-aba="roupa">Roupa</button>
+        <button class="aba" data-aba="pet">Pet</button>
+      </div>
+
+      <div class="aba-painel ativa" id="aba-corpo">
+        <label>Tipo de corpo</label>
+        <div class="opcoes" id="corpos">
+          <button class="opcao ativa" data-corpo-tipo="boneca">Boneca</button>
+          <button class="opcao" data-corpo-tipo="normal">Normal</button>
+          <button class="opcao" data-corpo-tipo="chibi">Chibi</button>
+        </div>
+        <label>Pele</label>
+        <div class="opcoes" id="peles">
+          <button class="opcao ativa" data-pele="clara">Clara</button>
+          <button class="opcao" data-pele="media">Media</button>
+          <button class="opcao" data-pele="morena">Morena</button>
+          <button class="opcao" data-pele="escura">Escura</button>
+        </div>
+      </div>
+
+      <div class="aba-painel" id="aba-rosto">
+        <label>Olhos</label>
+        <div class="opcoes" id="olhos">
+          <button class="opcao ativa" data-olhos="grande">Grandes</button>
+          <button class="opcao" data-olhos="anime">Anime</button>
+          <button class="opcao" data-olhos="normal">Normal</button>
+        </div>
+        <label>Cor dos olhos</label>
+        <div class="cores" id="cores-olhos">
+          <button class="cor ativa" data-cor-olhos="castanho" style="background:#8B4513"></button>
+          <button class="cor" data-cor-olhos="azul" style="background:#3498DB"></button>
+          <button class="cor" data-cor-olhos="verde" style="background:#2ECC71"></button>
+          <button class="cor" data-cor-olhos="roxo" style="background:#9B59B6"></button>
+          <button class="cor" data-cor-olhos="preto" style="background:#222"></button>
+          <button class="cor" data-cor-olhos="rosa" style="background:#FF69B4"></button>
+        </div>
+        <label>Boca</label>
+        <div class="opcoes" id="bocas">
+          <button class="opcao ativa" data-boca="sorriso">Sorriso</button>
+          <button class="opcao" data-boca="feliz">Feliz</button>
+          <button class="opcao" data-boca="biquinho">Biquinho</button>
+          <button class="opcao" data-boca="surpresa">Surpresa</button>
+          <button class="opcao" data-boca="lingua">Lingua</button>
+        </div>
+      </div>
+
+      <div class="aba-painel" id="aba-cabelo">
+        <label>Estilo</label>
+        <div class="opcoes" id="cabelos">
+          <button class="opcao ativa" data-cabelo="mega">Mega longo</button>
+          <button class="opcao" data-cabelo="longo">Longo</button>
+          <button class="opcao" data-cabelo="cacheado">Cacheado</button>
+          <button class="opcao" data-cabelo="rabo">Rabo de cavalo</button>
+          <button class="opcao" data-cabelo="tranca">Tranca</button>
+          <button class="opcao" data-cabelo="afro">Afro</button>
+          <button class="opcao" data-cabelo="ondas">Ondas</button>
+          <button class="opcao" data-cabelo="spiky">Espetado</button>
+          <button class="opcao" data-cabelo="moicano">Moicano</button>
+          <button class="opcao" data-cabelo="careca">Careca</button>
+        </div>
+        <label>Cor do cabelo</label>
+        <div class="cores" id="cores-cabelo">
+          <button class="cor ativa" data-cor-cabelo="castanho" style="background:#4A3728"></button>
+          <button class="cor" data-cor-cabelo="loiro" style="background:#FFD700"></button>
+          <button class="cor" data-cor-cabelo="ruivo" style="background:#FF6B35"></button>
+          <button class="cor" data-cor-cabelo="preto" style="background:#222"></button>
+          <button class="cor" data-cor-cabelo="rosa" style="background:#FF69B4"></button>
+          <button class="cor" data-cor-cabelo="azul" style="background:#3498DB"></button>
+          <button class="cor" data-cor-cabelo="roxo" style="background:#9B59B6"></button>
+        </div>
+      </div>
+
+      <div class="aba-painel" id="aba-roupa">
+        <label>Cor da roupa</label>
+        <div class="cores" id="cores">
+          <button class="cor ativa" data-cor="#FF1493" style="background:#FF1493"></button>
+          <button class="cor" data-cor="#00CED1" style="background:#00CED1"></button>
+          <button class="cor" data-cor="#FFD700" style="background:#FFD700"></button>
+          <button class="cor" data-cor="#9B59B6" style="background:#9B59B6"></button>
+          <button class="cor" data-cor="#FF6B35" style="background:#FF6B35"></button>
+          <button class="cor" data-cor="#2ECC71" style="background:#2ECC71"></button>
+          <button class="cor" data-cor="#3498DB" style="background:#3498DB"></button>
+          <button class="cor" data-cor="#FF69B4" style="background:#FF69B4"></button>
+        </div>
+        <label>Parte de cima</label>
+        <div class="opcoes" id="tops">
+          <button class="opcao ativa" data-top="basico">Basico</button>
+          <button class="opcao" data-top="listrado">Listrado</button>
+          <button class="opcao" data-top="rosa">Rosa</button>
+          <button class="opcao" data-top="verde">Verde</button>
+        </div>
+        <label>Parte de baixo</label>
+        <div class="opcoes" id="bottoms">
+          <button class="opcao ativa" data-bottom="jeans">Jeans</button>
+          <button class="opcao" data-bottom="saia">Saia</button>
+          <button class="opcao" data-bottom="shorts">Shorts</button>
+        </div>
+        <label>Sapatos</label>
+        <div class="opcoes" id="shoes">
+          <button class="opcao ativa" data-shoes="tenis">Tenis</button>
+          <button class="opcao" data-shoes="botas">Botas</button>
+          <button class="opcao" data-shoes="sandalia">Sandalia</button>
+          <button class="opcao" data-shoes="salto">Salto</button>
+        </div>
+        <label>Acessorio</label>
+        <div class="opcoes" id="chapeus">
+          <button class="opcao ativa" data-chapeu="nenhum">Nenhum</button>
+          <button class="opcao" data-chapeu="coroa">Coroa</button>
+          <button class="opcao" data-chapeu="oculos">Oculos</button>
+          <button class="opcao" data-chapeu="asa">Asas</button>
+          <button class="opcao" data-chapeu="chapeu">Chapeu</button>
+          <button class="opcao" data-chapeu="laco">Laco</button>
+        </div>
+      </div>
+
+      <div class="aba-painel" id="aba-pet">
+        <label>Seu pet</label>
+        <div class="opcoes opcoes-pet" id="pets">
+          <button class="opcao ativa" data-pet="cachorro">Cachorro</button>
+          <button class="opcao" data-pet="gato">Gato</button>
+          <button class="opcao" data-pet="coelho">Coelho</button>
+          <button class="opcao" data-pet="unicornio">Unicornio</button>
+          <button class="opcao" data-pet="dragao">Dragao</button>
+        </div>
+      </div>
+
+      <p id="erro-entrar" class="erro oculto"></p>
+      <div class="aviso-entrar">
+        <strong>Para andar no jogo:</strong> monte seu boneco aqui em cima e depois toque no botao verde abaixo.
+      </div>
+      <button class="btn-aw btn-play btn-entrar-grande" id="btn-confirmar-entrar">ENTRAR NO MUNDO</button>
+    </div>
+  </div>
+</section>
+
+<section id="tela-loading" class="tela">
+  <div class="loading">
+    <div class="spinner-aw"></div>
+    <p>Preparando seu mundo...</p>
+  </div>
+</section>
+
+<!-- JOGO -->
+<section id="tela-jogo" class="tela">
+  <canvas id="canvas"></canvas>
+
+  <div class="hud">
+    <div class="hud-topo">
+      <div class="avatar-mini" id="avatar-mini">*</div>
+      <div class="info-mundo">
+        <strong id="nome-mundo">Cidade</strong>
+        <small id="codigo-mundo"></small>
+      </div>
+      <button class="hud-btn" id="btn-ajuda" title="Como jogar">?</button>
+      <button class="hud-btn" id="btn-guarda-roupa" title="Guarda-roupa">R</button>
+      <button class="hud-moedas" id="hud-moedas" onclick="abrirLoja()">$ 0</button>
+      <span class="badge-online" id="badge-online">1 online</span>
+    </div>
+
+    <div class="hud-pontos" id="hud-pontos">Explore a cidade!</div>
+
+    <nav class="nav-inferior">
+      <button class="nav-btn ativo" data-jogo="cidade" title="Cidade"><span class="nav-ico">C</span><small>Cidade</small></button>
+      <button class="nav-btn" data-jogo="casa" title="Minha Casa"><span class="nav-ico">H</span><small>Casa</small></button>
+      <button class="nav-btn" data-jogo="escola" title="Escola"><span class="nav-ico">E</span><small>Escola</small></button>
+      <button class="nav-btn" data-jogo="praia" title="Praia"><span class="nav-ico">P</span><small>Praia</small></button>
+      <button class="nav-btn" data-jogo="pizza" title="Pizzaria"><span class="nav-ico">Z</span><small>Pizza</small></button>
+      <button class="nav-btn" data-jogo="skate" title="Skate"><span class="nav-ico">S</span><small>Skate</small></button>
+      <button class="nav-btn" data-jogo="fazenda" title="Fazenda"><span class="nav-ico">F</span><small>Fazenda</small></button>
+      <button class="nav-btn" data-jogo="parque" title="Parque"><span class="nav-ico">K</span><small>Parque</small></button>
+    </nav>
+
+    <div class="barra-emotes">
+      <button class="btn-emote" data-emote="acenar">Oi</button>
+      <button class="btn-emote" data-emote="dancar">Danca</button>
+      <button class="btn-emote" data-emote="pular">Pula</button>
+      <button class="btn-emote" data-emote="comemorar">Uhu</button>
+      <button class="btn-emote" data-emote="rir">Risada</button>
+    </div>
+
+    <button class="btn-voz" id="btn-voz">VOZ</button>
+  </div>
+
+  <!-- Loja -->
+  <div class="loja oculto" id="loja">
+    <div class="loja-painel">
+      <button class="loja-fechar" onclick="fecharLoja()">X</button>
+      <h3>Loja</h3>
+      <p class="loja-saldo"><span id="loja-moedas">0</span> moedas</p>
+      <div class="loja-abas">
+        <button class="loja-aba ativa" data-cat="acessorios">Acessorios</button>
+        <button class="loja-aba" data-cat="roupas">Roupas</button>
+        <button class="loja-aba" data-cat="pets">Pets</button>
+      </div>
+      <div class="loja-itens" id="loja-itens"></div>
+    </div>
+  </div>
+
+  <!-- Guarda-roupa -->
+  <div class="loja oculto" id="guarda-roupa">
+    <div class="loja-painel">
+      <button class="loja-fechar" onclick="fecharGuardaRoupa()">X</button>
+      <h3>Guarda-roupa</h3>
+      <p class="loja-saldo">Equipe seus itens comprados!</p>
+      <div class="loja-itens" id="guarda-itens"></div>
+    </div>
+  </div>
+
+  <!-- Tutorial de controles -->
+  <div class="tutorial-controles" id="tutorial-controles">
+    <div class="tutorial-box">
+      <h3>Como mover seu boneco</h3>
+      <div class="tutorial-itens">
+        <p class="tut-item tut-destaque tut-tap">1. <strong>Toque no chao</strong> onde quer ir<br><small>Seu boneco anda sozinho ate la!</small></p>
+        <p class="tut-item tut-destaque tut-pc">1. <strong>Clique no chao</strong> onde quer ir<br><small>Aparece um circulo rosa - o boneco vai ate la!</small></p>
+        <p class="tut-item tut-mobile">2. Ou arraste o <strong>joystick</strong> no canto esquerdo</p>
+        <p class="tut-item tut-pc">2. Ou use as teclas <strong>W A S D</strong></p>
+        <p class="tut-item">3. Botao rosa = <strong>Pular</strong></p>
+        <p class="tut-item">4. Botao roxo = <strong>Interagir</strong> (loja, portas)</p>
+      </div>
+      <button class="btn-aw btn-play" id="btn-fechar-tutorial">Entendi! Vamos jogar</button>
+    </div>
+  </div>
+
+  <!-- Dica PC -->
+  <div class="dica-pc" id="dica-pc">Clique no chao para andar - WASD tambem funciona - Espaco = pular</div>
+
+  <!-- Controles -->
+  <div class="controles">
+    <div class="joystick-area" id="joystick-area">
+      <span class="controle-label">MOVER</span>
+      <div class="joystick-fundo" id="joystick-fundo">
+        <div class="joystick-bolinha" id="joystick-bolinha"></div>
+      </div>
+    </div>
+    <div class="botoes-acao">
+      <div class="btn-acao-wrap">
+        <button class="btn-acao btn-pular" id="btn-pular">^</button>
+        <span class="controle-label">PULAR</span>
+      </div>
+      <button class="btn-acao btn-skate oculto" id="btn-skate">SK</button>
+      <div class="btn-acao-wrap">
+        <button class="btn-acao btn-acao-extra" id="btn-acao">!</button>
+        <span class="controle-label">ACAO</span>
+      </div>
+      <button class="btn-acao btn-movel oculto" id="btn-movel">MV</button>
+    </div>
+  </div>
+
+  <div class="toast oculto" id="toast"></div>
+  <div class="bonus-diario oculto" id="bonus-diario">
+    <div class="bonus-box">
+      <h3>Bonus do dia!</h3>
+      <p>+50 moedas gratis!</p>
+      <button class="btn-aw btn-play" onclick="pegarBonus()">Pegar!</button>
+    </div>
+  </div>
+</section>
+
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="/js/config.js"></script>
+<script src="/js/effects.js"></script>
+<script src="/js/avatar.js"></script>
+<script src="/js/game.js"></script>
+<script src="/js/main.js"></script>
+</body>
+</html>
