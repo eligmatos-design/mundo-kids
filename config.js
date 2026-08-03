@@ -9,8 +9,8 @@
  *   Exemplo: 'https://mundo-kids.seudominio.com'
  */
 window.APP_CONFIG = {
-  // ⚠️ ANTES DE PUBLICAR: coloque aqui a URL do servidor online
-  serverUrl: '',
+  // Servidor online Render.com
+  serverUrl: 'https://mundo-kids.onrender.com',
 
   appName: 'Mundo Kids',
   version: '1.0.0'
