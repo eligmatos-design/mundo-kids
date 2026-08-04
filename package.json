@@ -1,0 +1,24 @@
+{
+  "name": "mundo-kids",
+  "version": "1.0.0",
+  "description": "Mundo Kids — jogo infantil estilo PK XD para Android",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "start:render": "node servidor.js",
+    "cap:sync": "npx cap sync android",
+    "cap:open": "npx cap open android",
+    "cap:build": "npx cap sync android && npx cap open android",
+    "android:prepare": "npx cap add android && npx cap sync android"
+  },
+  "dependencies": {
+    "@capacitor/android": "^6.2.0",
+    "@capacitor/core": "^6.2.0",
+    "@capacitor/splash-screen": "^6.0.3",
+    "express": "^4.21.0",
+    "socket.io": "^4.7.5"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^6.2.0"
+  }
+}
