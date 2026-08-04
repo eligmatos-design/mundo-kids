@@ -41,6 +41,18 @@
     { id: 'luminaria', nome: 'Lampada', cor: 0xFFE066, w: 0.4, h: 1.2, d: 0.4, fbx: 'Light_Floor1.fbx' }
   ];
 
+  /** Blocos de construção — para a crianca montar suas proprias casinhas/muros na Cidade */
+  const BLOCO_CATALOG = [
+    { id: 'tijolo', nome: 'Bloco Tijolo', tex: 'tijolo' },
+    { id: 'madeira', nome: 'Bloco Madeira', tex: 'madeira' },
+    { id: 'pedra', nome: 'Bloco Pedra', cor: 0xB8BEC7 },
+    { id: 'grama', nome: 'Bloco Grama', tex: 'grama' },
+    { id: 'vidro', nome: 'Bloco Vidro', cor: 0xBEE7FA, vidro: true },
+    { id: 'rosa', nome: 'Bloco Rosa', cor: 0xFF9ECD }
+  ];
+  let blocoIdx = 0;
+  const BLOCO_LIMITE = 80;
+
   // ── Móveis 3D reais (Quaternius, CC0) ──
   const _fbxCache = {};
   let _fbxLoader = null;
@@ -645,7 +657,7 @@
         objs.push(mesh(new THREE.ConeGeometry(1.2, 1.5, 4), 0xFF1493, 0, 6, -10));
         scene.add(objs[objs.length - 1]);
         for (let i = 0; i < 10; i++) moeda((Math.random() - .5) * 22, 0.5, (Math.random() - .5) * 22);
-        pontos('Cidade - visite Paris, loja e parque!');
+        pontos('🧱 Toque no tijolo para construir!');
       },
       update() {
         objs.forEach(o => {
@@ -872,6 +884,33 @@
     movelAtual = MOVEL_CATALOG[(estado.moveis || 0) % MOVEL_CATALOG.length].id;
   }
 
+  /** Coloca um bloco de construção na Cidade, na frente da crianca. Toques repetidos no
+   * mesmo lugar empilham blocos (a crianca pode subir em cima e continuar construindo). */
+  function colocarBloco() {
+    if (jogoAtual !== 'skate') return;
+    if ((estado.blocos || 0) >= BLOCO_LIMITE) { toast('Limite de ' + BLOCO_LIMITE + ' blocos! Va em outro lugar.'); return; }
+    const b = BLOCO_CATALOG[blocoIdx % BLOCO_CATALOG.length];
+    const x = Math.round(jog.x + Math.sin(jog.rot) * 2.2);
+    const z = Math.round(jog.z + Math.cos(jog.rot) * 2.2);
+    const chave = x + ',' + z;
+    estado.blocoAlturas = estado.blocoAlturas || {};
+    const nivel = estado.blocoAlturas[chave] || 0;
+    if (nivel >= 8) { toast('Essa pilha ja esta bem alta!'); return; }
+    const y = nivel + 0.5;
+    const cubo = mesh(new THREE.BoxGeometry(1, 1, 1), b.cor || 0xffffff, x, y, z);
+    if (b.tex === 'tijolo') texturizar(cubo, obterTexturaTijolo(), 1, 1);
+    else if (b.tex === 'madeira') texturizar(cubo, obterTexturaMadeira(), 1, 1);
+    else if (b.tex === 'grama') texturizar(cubo, obterTexturaGrama(), 1, 1);
+    if (b.vidro) { cubo.material.transparent = true; cubo.material.opacity = 0.55; cubo.material.roughness = 0.1; cubo.material.metalness = 0.2; }
+    cubo.userData.blocoCidade = true; cubo.userData.plat = true;
+    objs.push(cubo); plats.push(cubo); scene.add(cubo);
+    estado.blocoAlturas[chave] = nivel + 1;
+    estado.blocos = (estado.blocos || 0) + 1;
+    FX.sons.moeda();
+    toast(b.nome + ' colocado! (' + estado.blocos + '/' + BLOCO_LIMITE + ')');
+    blocoIdx++;
+  }
+
   function irPara(id) {
     if (!ZONAS[id]) return;
     limpar(); jogoAtual = id; ZONAS[id].load();
@@ -881,6 +920,7 @@
     document.querySelectorAll('.nav-btn').forEach(b => b.classList.toggle('ativo', b.dataset.jogo === id));
     document.getElementById('btn-movel')?.classList.toggle('oculto', id !== 'casa');
     document.getElementById('btn-skate')?.classList.toggle('oculto', id !== 'skate');
+    document.getElementById('btn-bloco')?.classList.toggle('oculto', id !== 'skate');
     socket?.emit('trocar-jogo', id);
     FX.sons.portal();
   }
@@ -1047,6 +1087,8 @@
         }
       });
       toast('Procure ovos no chao!');
+    } else if (jogoAtual === 'skate') {
+      colocarBloco();
     } else emote('acenar');
   }
 
@@ -1205,6 +1247,11 @@
     document.getElementById('btn-acao')?.addEventListener('touchstart', e => { e.preventDefault(); acao(); }, { passive: false });
     document.getElementById('btn-skate')?.addEventListener('touchstart', e => { e.preventDefault(); noSkate = !noSkate; toast(noSkate ? '🛹 Skate ON!' : '🛹 Skate OFF'); }, { passive: false });
     document.getElementById('btn-movel')?.addEventListener('touchstart', e => { e.preventDefault(); colocarMovel(); }, { passive: false });
+    document.getElementById('btn-bloco')?.addEventListener('touchstart', e => { e.preventDefault(); colocarBloco(); }, { passive: false });
+    // Clique de mouse (desktop) — os toques acima ja cobrem celular/tablet
+    document.getElementById('btn-acao')?.addEventListener('click', acao);
+    document.getElementById('btn-movel')?.addEventListener('click', colocarMovel);
+    document.getElementById('btn-bloco')?.addEventListener('click', colocarBloco);
   }
   function moveJoy(t, fundo, bola) {
     const r = fundo.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2;
@@ -1305,7 +1352,8 @@
       AvatarBuilder.animarCaminhada(petMesh, t, andando);
     }
 
-    const alvoCamX = jog.x - Math.sin(jog.rot) * 9, alvoCamY = jog.y + 5.5, alvoCamZ = jog.z - Math.cos(jog.rot) * 9;
+    // Camera na frente do avatar (nao atras) — assim a crianca sempre ve o rosto do boneco enquanto anda
+    const alvoCamX = jog.x + Math.sin(jog.rot) * 6.5, alvoCamY = jog.y + 3.4, alvoCamZ = jog.z + Math.cos(jog.rot) * 6.5;
     if (!camPos) { camPos = new THREE.Vector3(alvoCamX, alvoCamY, alvoCamZ); camLook = new THREE.Vector3(jog.x, jog.y + 1.5, jog.z); }
     const suaviza = 1 - Math.pow(0.0001, dt); // suavizacao independente de fps — camera cinematografica, sem "pulos"
     camPos.x += (alvoCamX - camPos.x) * suaviza;
