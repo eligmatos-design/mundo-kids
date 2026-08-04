@@ -13,6 +13,26 @@
     sombra: { roxo: 0x9B59B6, rosa: 0xFF69B4, dourado: 0xFFD700, azul: 0x3498DB, verde: 0x2ECC71 }
   };
 
+  // ── Modelos 3D reais (Quaternius, CC0) — personagens e pets ──
+  const GLTF_CHARS = { boneca: 'Casual_Female.gltf', normal: 'Casual_Male.gltf', chibi: 'Casual_Bald.gltf' };
+  const GLTF_PETS = { cachorro: 'Husky.gltf' };
+  const _gltfCache = {};
+  let _gltfLoader = null;
+  function obterGLTFLoader() {
+    if (!_gltfLoader && window.THREE && THREE.GLTFLoader) _gltfLoader = new THREE.GLTFLoader();
+    return _gltfLoader;
+  }
+  function carregarGLTF(pasta, arquivo) {
+    const key = pasta + '/' + arquivo;
+    if (_gltfCache[key]) return _gltfCache[key];
+    const loader = obterGLTFLoader();
+    _gltfCache[key] = new Promise((resolve, reject) => {
+      if (!loader) { reject('GLTFLoader indisponivel'); return; }
+      loader.load('modelos/' + pasta + '/' + arquivo, resolve, undefined, reject);
+    });
+    return _gltfCache[key];
+  }
+
   function M(cor, em) {
     return new THREE.MeshStandardMaterial({
       color: cor, roughness: 0.6, metalness: em ? 0.35 : 0,
@@ -200,6 +220,57 @@
     return { headR, escala };
   }
 
+  // Substitui o corpo procedural por um personagem 3D real (Quaternius), mantendo
+  // a cor da pele/roupa/cabelo escolhida via tingimento dos materiais Skin/Shirt/Pants/Hair.
+  function montarCorpoGLTF(g, corpoTipo, peleCor, topCor, botCor, cc) {
+    const placeholder = mesh(new THREE.CylinderGeometry(0.28, 0.34, 1.5, 10), peleCor, 0, 0.85, 0);
+    g.add(placeholder);
+    const arquivo = GLTF_CHARS[corpoTipo] || GLTF_CHARS.boneca;
+    const alvoAltura = corpoTipo === 'chibi' ? 1.35 : 1.9;
+    carregarGLTF('personagens', arquivo).then(gltf => {
+      if (!window.THREE.SkeletonUtils) throw new Error('SkeletonUtils indisponivel');
+      const clone = THREE.SkeletonUtils.clone(gltf.scene);
+      clone.traverse(o => {
+        if (!o.isMesh) return;
+        o.castShadow = true; o.receiveShadow = true;
+        if (Array.isArray(o.material)) o.material = o.material.map(m => m.clone());
+        else o.material = o.material.clone();
+        const aplicar = (mat) => {
+          const n = (mat.name || '').toLowerCase();
+          if (n.includes('skin')) mat.color.setHex(peleCor);
+          else if (n.includes('shirt')) mat.color.setHex(topCor);
+          else if (n.includes('pant')) mat.color.setHex(botCor);
+          else if (n.includes('hair')) mat.color.setHex(cc);
+        };
+        if (Array.isArray(o.material)) o.material.forEach(aplicar); else aplicar(o.material);
+      });
+      const box1 = new THREE.Box3().setFromObject(clone);
+      const altura = Math.max(0.1, box1.max.y - box1.min.y);
+      const escala = alvoAltura / altura;
+      clone.scale.setScalar(escala);
+      const box2 = new THREE.Box3().setFromObject(clone);
+      clone.position.y -= box2.min.y;
+      g.remove(placeholder); placeholder.geometry.dispose(); placeholder.material.dispose();
+      g.add(clone);
+      g.userData.gltf = clone;
+      g.userData.headY = alvoAltura * 0.94;
+      if (gltf.animations && gltf.animations.length) {
+        const mixer = new THREE.AnimationMixer(clone);
+        const idle = THREE.AnimationClip.findByName(gltf.animations, 'Idle');
+        const walk = THREE.AnimationClip.findByName(gltf.animations, 'Walk');
+        const acIdle = idle ? mixer.clipAction(idle) : null;
+        const acWalk = walk ? mixer.clipAction(walk) : null;
+        if (acIdle) acIdle.play();
+        g.userData.mixer = mixer;
+        g.userData.acIdle = acIdle;
+        g.userData.acWalk = acWalk;
+        g.userData.andandoAtual = false;
+      }
+      if (g.userData.chapeuObj) g.userData.chapeuObj.position.y = g.userData.headY + 0.22;
+      if (g.userData.nomeSprite) g.userData.nomeSprite.position.y = g.userData.headY + 0.55;
+    }).catch(() => { /* rede falhou — mantem o corpo simples como reserva */ });
+  }
+
   function criar(opts = {}) {
     const {
       cor = '#FF1493', pele = 'clara', cabelo = 'mega', corCabelo = 'castanho',
@@ -223,45 +294,63 @@
     const botCor = bots[bottom] || 0x334488;
     const sapCor = sapatos[shoes] || 0xFFFFFF;
 
+    const usaGLTF = corpoTipo !== 'gata' && !!GLTF_CHARS[corpoTipo];
+
     let corpoInfo;
     if (corpoTipo === 'gata') {
       corpoInfo = addCorpoGata(g, topCor, botCor, sapCor);
+    } else if (usaGLTF) {
+      montarCorpoGLTF(g, corpoTipo, peleCor, topCor, botCor, cc);
+      corpoInfo = { headR: 0.5, escala: 1, gltf: true };
     } else {
       corpoInfo = addCorpoBoneca(g, peleCor, topCor, botCor, sapCor, corpoTipo);
     }
 
     const corBatom = CORES_MAQUIAGEM.batom[batom] || CORES_MAQUIAGEM.batom.rosa;
 
-    // Bochechas e sombra (maquiagem Angela)
-    addMaquiagem(g, batom, blush, sombra);
+    if (!usaGLTF) {
+      // Bochechas e sombra (maquiagem Angela)
+      addMaquiagem(g, batom, blush, sombra);
 
-    addOlhos(g, olhos, corOlhos, corpoTipo === 'gata' ? 0xFFF8F5 : peleCor);
-    addBoca(g, bocaFinal, corBatom);
-    if (cabelo !== 'careca') addCabelo(g, cabelo, cc);
+      addOlhos(g, olhos, corOlhos, corpoTipo === 'gata' ? 0xFFF8F5 : peleCor);
+      addBoca(g, bocaFinal, corBatom);
+      if (cabelo !== 'careca') addCabelo(g, cabelo, cc);
 
-    // Acessórios
-    if (chapeu === 'coroa') g.add(mesh(new THREE.TorusGeometry(0.38, 0.06, 4, 12), 0xFFD700, 0, 1.85, 0, 1));
-    else if (chapeu === 'oculos') {
-      g.add(mesh(new THREE.TorusGeometry(0.14, 0.025, 4, 12), 0x222222, -0.17, 1.34, 0.52));
-      g.add(mesh(new THREE.TorusGeometry(0.14, 0.025, 4, 12), 0x222222, 0.17, 1.34, 0.52));
-      g.add(mesh(new THREE.BoxGeometry(0.16, 0.025, 0.02), 0x222222, 0, 1.34, 0.52));
-    } else if (chapeu === 'asa') {
-      [[-0.58, 1.05, -0.2], [0.58, 1.05, -0.2]].forEach(([x, y, z]) => {
-        const asa = mesh(new THREE.BoxGeometry(0.7, 0.02, 0.5), 0xFF69B4, x, y, z);
-        asa.rotation.z = x < 0 ? 0.5 : -0.5; g.add(asa);
-      });
-    } else if (chapeu === 'chapeu') {
-      g.add(mesh(new THREE.CylinderGeometry(0.48, 0.48, 0.06, 12), 0xFF1493, 0, 1.78, 0));
-      g.add(mesh(new THREE.CylinderGeometry(0.28, 0.28, 0.22, 12), 0xFF1493, 0, 1.88, 0));
-    } else if (chapeu === 'laco') {
-      [[-0.15, 1.75, 0.1], [0.15, 1.75, 0.1]].forEach(([x, y, z]) => {
-        g.add(mesh(new THREE.SphereGeometry(0.1, 6, 4), 0xFF1493, x, y, z));
-      });
-      g.add(mesh(new THREE.BoxGeometry(0.08, 0.08, 0.08), 0xFF69B4, 0, 1.75, 0.1));
+      // Acessórios
+      if (chapeu === 'coroa') g.add(mesh(new THREE.TorusGeometry(0.38, 0.06, 4, 12), 0xFFD700, 0, 1.85, 0, 1));
+      else if (chapeu === 'oculos') {
+        g.add(mesh(new THREE.TorusGeometry(0.14, 0.025, 4, 12), 0x222222, -0.17, 1.34, 0.52));
+        g.add(mesh(new THREE.TorusGeometry(0.14, 0.025, 4, 12), 0x222222, 0.17, 1.34, 0.52));
+        g.add(mesh(new THREE.BoxGeometry(0.16, 0.025, 0.02), 0x222222, 0, 1.34, 0.52));
+      } else if (chapeu === 'asa') {
+        [[-0.58, 1.05, -0.2], [0.58, 1.05, -0.2]].forEach(([x, y, z]) => {
+          const asa = mesh(new THREE.BoxGeometry(0.7, 0.02, 0.5), 0xFF69B4, x, y, z);
+          asa.rotation.z = x < 0 ? 0.5 : -0.5; g.add(asa);
+        });
+      } else if (chapeu === 'chapeu') {
+        g.add(mesh(new THREE.CylinderGeometry(0.48, 0.48, 0.06, 12), 0xFF1493, 0, 1.78, 0));
+        g.add(mesh(new THREE.CylinderGeometry(0.28, 0.28, 0.22, 12), 0xFF1493, 0, 1.88, 0));
+      } else if (chapeu === 'laco') {
+        [[-0.15, 1.75, 0.1], [0.15, 1.75, 0.1]].forEach(([x, y, z]) => {
+          g.add(mesh(new THREE.SphereGeometry(0.1, 6, 4), 0xFF1493, x, y, z));
+        });
+        g.add(mesh(new THREE.BoxGeometry(0.08, 0.08, 0.08), 0xFF69B4, 0, 1.75, 0.1));
+      }
+    } else {
+      // Corpo 3D real: so acessorios que ficam bem flutuando sobre a cabeca (coroa/chapeu).
+      // Reposicionados com precisao assim que o modelo carrega (ver montarCorpoGLTF).
+      let chapeuObj = null;
+      if (chapeu === 'coroa') chapeuObj = mesh(new THREE.TorusGeometry(0.3, 0.05, 4, 12), 0xFFD700, 0, 1.7, 0, 1);
+      else if (chapeu === 'chapeu') {
+        chapeuObj = new THREE.Group();
+        chapeuObj.add(mesh(new THREE.CylinderGeometry(0.42, 0.42, 0.05, 12), 0xFF1493, 0, 1.66, 0));
+        chapeuObj.add(mesh(new THREE.CylinderGeometry(0.24, 0.24, 0.2, 12), 0xFF1493, 0, 1.75, 0));
+      }
+      if (chapeuObj) { g.add(chapeuObj); g.userData.chapeuObj = chapeuObj; }
     }
 
-    // Pernas e bracos (so humanos — gata ja tem corpo completo)
-    if (corpoTipo !== 'gata') {
+    // Pernas e bracos procedurais (so corpo classico — gata e GLTF ja tem corpo completo)
+    if (corpoTipo !== 'gata' && !usaGLTF) {
     const pernaH = corpoTipo === 'boneca' ? 0.38 : 0.32;
     const pernaL = mesh(new THREE.CylinderGeometry(0.09, 0.11, pernaH, 8), botCor, -0.13, 0.14, 0);
     const pernaR = mesh(new THREE.CylinderGeometry(0.09, 0.11, pernaH, 8), botCor, 0.13, 0.14, 0);
@@ -295,7 +384,8 @@
       ctx.fillStyle = '#fff'; ctx.font = 'bold 22px sans-serif'; ctx.textAlign = 'center';
       ctx.fillText(nome, 128, 32);
       const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(cv) }));
-      sp.position.y = 2.2; sp.scale.set(2.2, 0.45, 1);
+      sp.position.y = usaGLTF ? 2.35 : 2.2; sp.scale.set(2.2, 0.45, 1);
+      g.userData.nomeSprite = sp;
       g.add(sp);
     }
 
@@ -303,12 +393,49 @@
     return g;
   }
 
+  // Substitui o pet procedural por um modelo 3D real (Quaternius) quando disponivel.
+  function montarPetGLTF(g, arquivo) {
+    const placeholder = mesh(new THREE.SphereGeometry(0.3, 8, 6), 0xC68642, 0, 0.3, 0);
+    g.add(placeholder);
+    carregarGLTF('animais', arquivo).then(gltf => {
+      if (!window.THREE.SkeletonUtils) throw new Error('SkeletonUtils indisponivel');
+      const clone = THREE.SkeletonUtils.clone(gltf.scene);
+      clone.traverse(o => {
+        if (!o.isMesh) return;
+        o.castShadow = true; o.receiveShadow = true;
+      });
+      const box1 = new THREE.Box3().setFromObject(clone);
+      const altura = Math.max(0.1, box1.max.y - box1.min.y);
+      const escala = 0.55 / altura;
+      clone.scale.setScalar(escala);
+      const box2 = new THREE.Box3().setFromObject(clone);
+      clone.position.y -= box2.min.y;
+      g.remove(placeholder); placeholder.geometry.dispose(); placeholder.material.dispose();
+      g.add(clone);
+      if (gltf.animations && gltf.animations.length) {
+        const mixer = new THREE.AnimationMixer(clone);
+        const idle = THREE.AnimationClip.findByName(gltf.animations, 'Idle') || gltf.animations[0];
+        if (idle) mixer.clipAction(idle).play();
+        g.userData.mixer = mixer;
+      }
+    }).catch(() => { /* rede falhou — mantem o pet simples como reserva */ });
+  }
+
   function criarPet(tipo) {
     const g = new THREE.Group();
-    const cores = { cachorro: 0xC68642, gato: 0x888888, coelho: 0xFFFFFF, unicornio: 0xFF69B4, dragao: 0x2ECC71 };
+    const arquivoGLTF = GLTF_PETS[tipo];
+    if (arquivoGLTF) { montarPetGLTF(g, arquivoGLTF); return g; }
+
+    const cores = { gato: 0xE8B88A, coelho: 0xFFFFFF, unicornio: 0xFF69B4, dragao: 0x2ECC71 };
     const cor = cores[tipo] || 0xC68642;
-    g.add(mesh(new THREE.SphereGeometry(0.35, 8, 6), cor, 0, 0.35, 0));
-    g.add(mesh(new THREE.SphereGeometry(0.25, 8, 6), cor, 0, 0.35, 0.28));
+    g.add(mesh(new THREE.SphereGeometry(0.34, 10, 8), cor, 0, 0.34, -0.02));
+    g.add(mesh(new THREE.SphereGeometry(0.22, 10, 8), cor, 0, 0.36, 0.3));
+    if (tipo === 'gato') {
+      // Focinho e bigodes simples — deixa o gatinho mais expressivo
+      g.add(mesh(new THREE.SphereGeometry(0.08, 6, 4), 0xFFF0F5, 0, 0.3, 0.46));
+      const rabo = mesh(new THREE.CylinderGeometry(0.035, 0.02, 0.42, 6), cor, 0, 0.4, -0.34);
+      rabo.rotation.x = -0.7; g.add(rabo);
+    }
     if (tipo === 'unicornio') g.add(mesh(new THREE.ConeGeometry(0.06, 0.35, 4), 0xFFD700, 0, 0.65, 0.1));
     if (tipo === 'dragao') g.add(mesh(new THREE.BoxGeometry(0.3, 0.02, 0.2), 0x27AE60, 0, 0.5, -0.2));
     if (tipo === 'coelho') {
@@ -324,6 +451,22 @@
 
   function animarCaminhada(mesh, t, andando) {
     if (!mesh?.userData) return;
+    if (mesh.userData.mixer) {
+      const last = mesh.userData._lastT;
+      let dt = last === undefined ? 0 : t - last;
+      if (dt < 0 || dt > 0.5) dt = 0; // protege contra reinicio do relogio ou saltos grandes
+      mesh.userData._lastT = t;
+      mesh.userData.mixer.update(dt);
+      if (andando !== mesh.userData.andandoAtual) {
+        mesh.userData.andandoAtual = andando;
+        const { acIdle, acWalk } = mesh.userData;
+        if (acIdle && acWalk) {
+          if (andando) { acWalk.reset().play(); acIdle.crossFadeTo(acWalk, 0.25, false); }
+          else { acIdle.reset().play(); acWalk.crossFadeTo(acIdle, 0.25, false); }
+        }
+      }
+      return;
+    }
     if (mesh.userData.pernaL) {
       const s = andando ? Math.sin(t * 12) * 0.4 : 0;
       mesh.userData.pernaL.rotation.x = s;

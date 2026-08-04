@@ -33,13 +33,54 @@
     { id: 'skate_dourado', nome: 'Skate Dourado', preco: 120, tipo: 'skate', cat: 'acessorios' }
   ];
   const MOVEL_CATALOG = [
-    { id: 'sofa', nome: 'Sofa', cor: 0xFF69B4, w: 2, h: 0.8, d: 1 },
-    { id: 'cama', nome: 'Cama', cor: 0xFFB6D9, w: 2, h: 0.5, d: 2.5 },
+    { id: 'sofa', nome: 'Sofa', cor: 0xFF69B4, w: 2, h: 0.8, d: 1, fbx: 'Couch_Medium1.fbx' },
+    { id: 'cama', nome: 'Cama', cor: 0xFFB6D9, w: 2, h: 0.5, d: 2.5, fbx: 'Bed_Single.fbx' },
     { id: 'tv', nome: 'TV', cor: 0x222222, w: 1.5, h: 1, d: 0.2 },
-    { id: 'mesa', nome: 'Mesa', cor: 0xDEB887, w: 1.2, h: 0.7, d: 1.2 },
-    { id: 'planta', nome: 'Planta', cor: 0x98D8AA, w: 0.5, h: 0.8, d: 0.5 },
-    { id: 'luminaria', nome: 'Lampada', cor: 0xFFE066, w: 0.4, h: 1.2, d: 0.4 }
+    { id: 'mesa', nome: 'Mesa', cor: 0xDEB887, w: 1.2, h: 0.7, d: 1.2, fbx: 'Table_RoundSmall.fbx' },
+    { id: 'planta', nome: 'Planta', cor: 0x98D8AA, w: 0.5, h: 0.8, d: 0.5, fbx: 'Houseplant_3.fbx' },
+    { id: 'luminaria', nome: 'Lampada', cor: 0xFFE066, w: 0.4, h: 1.2, d: 0.4, fbx: 'Light_Floor1.fbx' }
   ];
+
+  // ── Móveis 3D reais (Quaternius, CC0) ──
+  const _fbxCache = {};
+  let _fbxLoader = null;
+  function obterFBXLoader() {
+    if (!_fbxLoader && window.THREE && THREE.FBXLoader) _fbxLoader = new THREE.FBXLoader();
+    return _fbxLoader;
+  }
+  function carregarFBX(arquivo) {
+    if (_fbxCache[arquivo]) return _fbxCache[arquivo];
+    const loader = obterFBXLoader();
+    _fbxCache[arquivo] = new Promise((resolve, reject) => {
+      if (!loader) { reject('FBXLoader indisponivel'); return; }
+      loader.load('modelos/moveis/' + arquivo, resolve, undefined, reject);
+    });
+    return _fbxCache[arquivo];
+  }
+  // Substitui a caixa colorida de um movel por um modelo 3D real, mantendo as
+  // mesmas dimensoes (w/h/d) e a cor do catalogo (tingida sobre o modelo cinza).
+  function montarMovelFBX(placeholder, m, x, y, z) {
+    carregarFBX(m.fbx).then(obj => {
+      const clone = obj.clone(true);
+      clone.traverse(o => {
+        if (!o.isMesh) return;
+        o.castShadow = true; o.receiveShadow = true;
+        o.material = M(m.cor);
+      });
+      const box1 = new THREE.Box3().setFromObject(clone);
+      const tam = new THREE.Vector3(); box1.getSize(tam);
+      const escala = Math.min(m.w / Math.max(tam.x, 0.01), m.h / Math.max(tam.y, 0.01) * 1.4, m.d / Math.max(tam.z, 0.01)) || 1;
+      clone.scale.setScalar(escala);
+      const box2 = new THREE.Box3().setFromObject(clone);
+      const centro = new THREE.Vector3(); box2.getCenter(centro);
+      clone.position.x += x - centro.x;
+      clone.position.z += z - centro.z;
+      clone.position.y += y - box2.min.y;
+      clone.userData.movel = true;
+      objs.push(clone); scene.add(clone);
+      if (placeholder) { scene.remove(placeholder); objs.splice(objs.indexOf(placeholder), 1); }
+    }).catch(() => { /* rede falhou — mantem a caixa colorida como reserva */ });
+  }
   const comprados = new Set(JSON.parse(localStorage.getItem('mk_comprados') || '[]'));
   moedas = parseInt(localStorage.getItem('mk_moedas') || '50', 10);
   const jog = { x: 0, y: 1, z: 0, rot: 0, velY: 0, chao: true, envio: 0 };
@@ -456,7 +497,7 @@
         objs.forEach(o => {
           if (!o.userData.predio) return;
           if (Math.abs(jog.x - o.position.x) < 4 && Math.abs(jog.z - o.position.z) < 4) {
-            const map = { LOJA: 'cidade', PARIS: 'fazenda', PRAIA: 'pesca', PARQUE: 'parque' };
+            const map = { LOJA: 'cidade', PARIS: 'fazenda', PRAIA: 'pesca', PARQUE: 'parquediversoes' };
             const z = map[o.userData.predio];
             if (z) { irPara(z); toast('Viajando: ' + o.userData.predio); }
           }
@@ -586,7 +627,7 @@
         colidirMoedas();
       }
     },
-    parque: {
+    parquediversoes: {
       nome: '🎡 Parque',
       load() {
         plat(28, 0.3, 28, 0x5cb85c, 0, -0.15, 0, true);
@@ -648,6 +689,7 @@
     if (!m) return;
     const o = mesh(new THREE.BoxGeometry(m.w, m.h, m.d), m.cor, x, y + m.h / 2, z);
     o.userData.movel = true; objs.push(o); scene.add(o);
+    if (m.fbx) montarMovelFBX(o, m, x, y, z); // troca a caixa por um modelo 3D real assim que carregar
   }
 
   function colocarMovel() {
@@ -1093,6 +1135,7 @@
       petMesh.position.x += (jog.x - Math.sin(jog.rot) * 1.2 - petMesh.position.x) * 0.1;
       petMesh.position.z += (jog.z - Math.cos(jog.rot) * 1.2 - petMesh.position.z) * 0.1;
       petMesh.position.y = jog.y + Math.sin(t * 5) * 0.06;
+      AvatarBuilder.animarCaminhada(petMesh, t, andando);
     }
 
     const alvoCamX = jog.x - Math.sin(jog.rot) * 9, alvoCamY = jog.y + 5.5, alvoCamZ = jog.z - Math.cos(jog.rot) * 9;
@@ -1108,10 +1151,12 @@
     camera.lookAt(camLook);
 
     Object.values(outros).forEach(o => {
+      const movendo = Math.abs(o.tx - o.mesh.position.x) > 0.03 || Math.abs(o.tz - o.mesh.position.z) > 0.03;
       o.mesh.position.x += (o.tx - o.mesh.position.x) * .15;
       o.mesh.position.y += (o.ty - o.mesh.position.y) * .15;
       o.mesh.position.z += (o.tz - o.mesh.position.z) * .15;
       o.mesh.rotation.y += (o.tr - o.mesh.rotation.y) * .15;
+      AvatarBuilder.animarCaminhada(o.mesh, t, movendo);
     });
 
     anims.forEach(a => a.fn(t));
