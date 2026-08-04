@@ -224,8 +224,10 @@ html, body {
   box-shadow: 0 2px 6px rgba(0,0,0,.2);
 }
 .info-mundo {
-  flex: 1; background: rgba(0,0,0,.5); border-radius: 14px;
-  padding: 6px 12px; backdrop-filter: blur(8px);
+  flex: 1; background: rgba(20,10,25,.55); border-radius: 16px;
+  padding: 6px 14px; backdrop-filter: blur(10px);
+  border: 1px solid rgba(255,255,255,.18);
+  box-shadow: 0 3px 10px rgba(0,0,0,.2);
 }
 .info-mundo strong { display: block; font-size: .85rem; }
 .info-mundo small { color: var(--aw-amarelo); font-size: .7rem; filter: brightness(0.9); }
@@ -278,9 +280,20 @@ html, body {
   font-size: .75rem; font-weight: 900; color: #fff;
 }
 .barra-emotes .btn-emote { font-size: .65rem; font-weight: 800; min-width: 38px; padding: 0 4px; }
-.nav-angela .nav-btn { min-width: 0; flex: 1; padding: 8px 2px; }
-.nav-angela .nav-btn small { font-size: .65rem; font-weight: 800; color: #6B2D5C; line-height: 1.15; }
-.nav-angela .nav-btn.ativo { background: linear-gradient(180deg, #FFB6D9, #FF85C0); color: #fff; transform: none; }
+.nav-angela .nav-btn {
+  min-width: 0; flex: 1; padding: 7px 2px 6px;
+  border-radius: 16px; transition: background .15s, transform .12s;
+}
+.nav-angela .nav-btn .nav-emoji {
+  display: block; font-size: 1.25rem; line-height: 1;
+  margin-bottom: 3px; filter: drop-shadow(0 1px 1px rgba(0,0,0,.15));
+}
+.nav-angela .nav-btn small { font-size: .63rem; font-weight: 800; color: #6B2D5C; line-height: 1.15; }
+.nav-angela .nav-btn.ativo {
+  background: linear-gradient(180deg, #FFB6D9, #FF85C0);
+  color: #fff; transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(255,110,180,.45);
+}
 .nav-angela .nav-btn.ativo small { color: #fff; }
 .versao-jogo {
   background: #FF85C0; color: #fff; font-size: .55rem; font-weight: 900;

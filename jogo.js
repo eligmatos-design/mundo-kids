@@ -119,9 +119,76 @@
     return texturaGrama;
   }
 
-  function plat(w, h, d, cor, x, y, z, grama) {
-    const p = mesh(new THREE.BoxGeometry(w, h, d), grama ? 0x5cb85c : cor, x, y, z);
-    if (grama) {
+  // ── Fábrica de texturas procedurais (canvas) — deixam superfícies planas com cara de material real ──
+  const _texCache = {};
+  function _tex(chave, montar) {
+    if (_texCache[chave]) return _texCache[chave];
+    const cv = document.createElement('canvas');
+    cv.width = cv.height = 128;
+    montar(cv.getContext('2d'), cv);
+    const t = new THREE.CanvasTexture(cv);
+    t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    _texCache[chave] = t;
+    return t;
+  }
+  function obterTexturaMadeira(corTabua = '#a8532e', corLinha = '#7a3a1e') {
+    return _tex('madeira' + corTabua + corLinha, cx => {
+      cx.fillStyle = corTabua; cx.fillRect(0, 0, 128, 128);
+      cx.strokeStyle = corLinha; cx.lineWidth = 2;
+      for (let x = 0; x <= 128; x += 16) { cx.beginPath(); cx.moveTo(x, 0); cx.lineTo(x, 128); cx.stroke(); }
+      cx.strokeStyle = 'rgba(0,0,0,0.08)';
+      for (let i = 0; i < 40; i++) {
+        const y = Math.random() * 128;
+        cx.beginPath(); cx.moveTo(0, y); cx.lineTo(128, y + (Math.random() - .5) * 5); cx.stroke();
+      }
+    });
+  }
+  function obterTexturaTelha(cor1 = '#8B3A1E', cor2 = '#6E2C15') {
+    return _tex('telha' + cor1 + cor2, cx => {
+      cx.fillStyle = cor1; cx.fillRect(0, 0, 128, 128);
+      cx.strokeStyle = cor2; cx.lineWidth = 2;
+      const h = 16;
+      for (let row = 0, y = 0; y < 128; y += h, row++) {
+        const off = (row % 2) * 12;
+        cx.beginPath(); cx.moveTo(0, y); cx.lineTo(128, y); cx.stroke();
+        for (let x = -off; x < 128; x += 24) { cx.beginPath(); cx.moveTo(x, y); cx.lineTo(x, y + h); cx.stroke(); }
+      }
+    });
+  }
+  function obterTexturaTijolo(cor1 = '#D97A5C', cor2 = '#B5583D') {
+    return _tex('tijolo' + cor1 + cor2, cx => {
+      cx.fillStyle = cor2; cx.fillRect(0, 0, 128, 128);
+      cx.fillStyle = cor1;
+      const h = 16, w = 32;
+      for (let row = 0, y = 0; y < 128; y += h, row++) {
+        const off = (row % 2) * (w / 2);
+        for (let x = -w + off; x < 128; x += w) cx.fillRect(x + 1, y + 1, w - 2, h - 2);
+      }
+    });
+  }
+  function obterTexturaCalcada(cor1 = '#D9D9DC', cor2 = '#C4C4C9') {
+    return _tex('calcada' + cor1 + cor2, cx => {
+      cx.fillStyle = cor1; cx.fillRect(0, 0, 128, 128);
+      cx.strokeStyle = cor2; cx.lineWidth = 3;
+      for (let x = 0; x <= 128; x += 32) { cx.beginPath(); cx.moveTo(x, 0); cx.lineTo(x, 128); cx.stroke(); }
+      for (let y = 0; y <= 128; y += 32) { cx.beginPath(); cx.moveTo(0, y); cx.lineTo(128, y); cx.stroke(); }
+      cx.fillStyle = 'rgba(0,0,0,0.03)';
+      for (let i = 0; i < 60; i++) cx.fillRect(Math.random() * 128, Math.random() * 128, 2, 2);
+    });
+  }
+  /** Aplica uma textura procedural numa malha existente, com repetição ajustável */
+  function texturizar(m, tex, repX = 2, repY = 2) {
+    const t = tex.clone(); t.needsUpdate = true;
+    t.repeat.set(repX, repY);
+    m.material.map = t;
+    m.material.needsUpdate = true;
+    return m;
+  }
+
+  function plat(w, h, d, cor, x, y, z, tipo) {
+    const solido = tipo === true || tipo === 'grama';
+    const p = mesh(new THREE.BoxGeometry(w, h, d), solido ? 0x5cb85c : cor, x, y, z);
+    if (solido) {
       const topo = mesh(new THREE.BoxGeometry(w, 0.06, d), 0xffffff, 0, h / 2 + 0.03, 0);
       const tex = obterTexturaGrama().clone();
       tex.needsUpdate = true;
@@ -129,27 +196,57 @@
       topo.material.map = tex;
       topo.material.needsUpdate = true;
       p.add(topo);
+    } else if (tipo === 'calcada') {
+      const topo = mesh(new THREE.BoxGeometry(w, 0.06, d), 0xffffff, 0, h / 2 + 0.03, 0);
+      texturizar(topo, obterTexturaCalcada(), Math.max(1, Math.round(w / 2)), Math.max(1, Math.round(d / 2)));
+      p.add(topo);
     }
     p.userData.plat = true; plats.push(p); scene.add(p); return p;
   }
 
+  function tonalidade(cor, fator) {
+    const c = new THREE.Color(cor);
+    if (fator > 0) c.lerp(new THREE.Color(0xffffff), fator);
+    else c.lerp(new THREE.Color(0x000000), -fator);
+    return c.getHex();
+  }
+  function hexCss(cor) { return '#' + new THREE.Color(cor).getHexString(); }
+
   function predio(nome, cor, x, z, w, h, d) {
     const g = new THREE.Group();
-    g.add(mesh(new THREE.BoxGeometry(w, h, d), cor, 0, h / 2, 0));
-    // Janelas
-    for (let iy = 0; iy < 2; iy++) for (let ix = -1; ix <= 1; ix++) {
-      g.add(mesh(new THREE.BoxGeometry(0.8, 0.8, 0.05), 0xFFFFAA, ix * 1.5, 1.5 + iy * 2, d / 2 + 0.01));
+    const corClara = hexCss(tonalidade(cor, 0.3)), corEscura = hexCss(tonalidade(cor, -0.25));
+    // Corpo com fachada de tijolo/reboco (base branca + textura carrega a cor real)
+    const corpo = mesh(new THREE.BoxGeometry(w, h, d), 0xffffff, 0, h / 2, 0);
+    texturizar(corpo, obterTexturaTijolo(corClara, corEscura), Math.max(1, Math.round(w / 1.4)), Math.max(1, Math.round(h / 1.4)));
+    g.add(corpo);
+    // Telhado com beiral
+    g.add(mesh(new THREE.BoxGeometry(w + 0.5, 0.3, d + 0.5), tonalidade(cor, -0.4), 0, h + 0.15, 0));
+    g.add(mesh(new THREE.BoxGeometry(w + 0.1, 0.15, d + 0.1), tonalidade(cor, -0.15), 0, h + 0.35, 0));
+    // Janelas com moldura + vidro
+    const porJanela = Math.max(1, Math.min(3, Math.floor(w / 1.6)));
+    for (let iy = 0; iy < 2; iy++) for (let ix = 0; ix < porJanela; ix++) {
+      const px = (ix - (porJanela - 1) / 2) * 1.6;
+      g.add(mesh(new THREE.BoxGeometry(0.95, 0.95, 0.06), 0xffffff, px, 1.4 + iy * 1.9, d / 2 + 0.01));
+      const vidro = mesh(new THREE.BoxGeometry(0.75, 0.75, 0.05), 0xBEE7FA, px, 1.4 + iy * 1.9, d / 2 + 0.04);
+      vidro.material.roughness = 0.15; vidro.material.metalness = 0.3;
+      g.add(vidro);
     }
-    // Porta
-    g.add(mesh(new THREE.BoxGeometry(1.2, 2, 0.1), 0x8B4513, 0, 1, d / 2 + 0.02));
-    // Placa
-    const cv = document.createElement('canvas'); cv.width = 128; cv.height = 32;
+    // Porta com moldura
+    g.add(mesh(new THREE.BoxGeometry(1.5, 2.15, 0.14), 0xffffff, 0, 1.075, d / 2 + 0.02));
+    g.add(mesh(new THREE.BoxGeometry(1.2, 2, 0.1), 0x8B4513, 0, 1, d / 2 + 0.06));
+    // Placa com fundo arredondado
+    const cv = document.createElement('canvas'); cv.width = 256; cv.height = 64;
     const cx = cv.getContext('2d');
-    cx.fillStyle = cor === 0xFF6B35 ? '#FF6B35' : '#fff';
-    cx.font = 'bold 18px sans-serif'; cx.textAlign = 'center';
-    cx.fillText(nome, 64, 22);
+    cx.fillStyle = 'rgba(255,255,255,0.95)';
+    if (cx.roundRect) { cx.beginPath(); cx.roundRect(4, 4, 248, 56, 16); cx.fill(); }
+    else cx.fillRect(4, 4, 248, 56);
+    cx.strokeStyle = corEscura; cx.lineWidth = 4;
+    if (cx.roundRect) { cx.beginPath(); cx.roundRect(4, 4, 248, 56, 16); cx.stroke(); }
+    cx.fillStyle = corEscura;
+    cx.font = 'bold 30px sans-serif'; cx.textAlign = 'center'; cx.textBaseline = 'middle';
+    cx.fillText(nome, 128, 34);
     const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(cv) }));
-    sp.position.set(0, h + 0.8, 0); sp.scale.set(3, 0.75, 1);
+    sp.position.set(0, h + 0.9, d / 2 + 0.4); sp.scale.set(3, 0.75, 1);
     g.add(sp);
     g.position.set(x, 0, z);
     g.userData.predio = nome;
@@ -281,6 +378,63 @@
       const poste = mesh(new THREE.BoxGeometry(0.12, 0.7, 0.12), 0x8B4513, x, 0.35, z);
       objs.push(poste); scene.add(poste);
     }
+  }
+
+  // ── Animais 3D reais da fazenda (Quaternius, CC0) ──
+  const _animalGltfCache = {};
+  let _animalGltfLoader = null;
+  function obterAnimalLoader() {
+    if (!_animalGltfLoader && window.THREE && THREE.GLTFLoader) _animalGltfLoader = new THREE.GLTFLoader();
+    return _animalGltfLoader;
+  }
+  function carregarAnimalGLTF(arquivo) {
+    if (_animalGltfCache[arquivo]) return _animalGltfCache[arquivo];
+    const loader = obterAnimalLoader();
+    _animalGltfCache[arquivo] = new Promise((resolve, reject) => {
+      if (!loader) { reject('loader indisponivel'); return; }
+      loader.load('modelos/animais/' + arquivo, resolve, undefined, reject);
+    });
+    return _animalGltfCache[arquivo];
+  }
+  /** Coloca um animal 3D real (vaca, cavalo, jumento...) parado/pastando na cena */
+  function animalFazenda(arquivo, x, z, alturaAlvo, rotY) {
+    const g = new THREE.Group();
+    g.add(mesh(new THREE.CylinderGeometry(0.4, 0.5, 0.8, 8), 0xCCCCCC, 0, 0.4, 0));
+    g.position.set(x, 0, z);
+    g.rotation.y = rotY || 0;
+    g.userData.animalFazenda = true;
+    objs.push(g); scene.add(g);
+    carregarAnimalGLTF(arquivo).then(gltf => {
+      const clone = THREE.SkeletonUtils.clone(gltf.scene);
+      clone.traverse(o => {
+        if (!o.isMesh) return;
+        o.castShadow = true; o.receiveShadow = true;
+        if (o.material) o.material = o.material.clone();
+      });
+      const box1 = new THREE.Box3().setFromObject(clone);
+      const tam = new THREE.Vector3(); box1.getSize(tam);
+      const escala = alturaAlvo / Math.max(tam.y, 0.01);
+      clone.scale.setScalar(escala);
+      const box2 = new THREE.Box3().setFromObject(clone);
+      clone.position.y -= box2.min.y;
+      while (g.children.length) g.remove(g.children[0]);
+      g.add(clone);
+      const mixer = new THREE.AnimationMixer(clone);
+      const clipeIdle = THREE.AnimationClip.findByName(gltf.animations, 'Eating') ||
+        THREE.AnimationClip.findByName(gltf.animations, 'Idle_Headlow') ||
+        THREE.AnimationClip.findByName(gltf.animations, 'Idle');
+      if (clipeIdle) mixer.clipAction(clipeIdle).play();
+      g.userData.mixer = mixer;
+    }).catch(() => { /* rede falhou — mantem o cone cinza como reserva */ });
+    anims.push({ m: g, fn: t => {
+      const mx = g.userData.mixer;
+      if (!mx) return;
+      if (g.userData._lastT == null) g.userData._lastT = t;
+      const dt = Math.min(Math.max(t - g.userData._lastT, 0), 0.1);
+      g.userData._lastT = t;
+      mx.update(dt);
+    }});
+    return g;
   }
 
   // ── Apartamento estilo Angela ──
@@ -481,7 +635,7 @@
       nome: 'Cidade',
       load() {
         plat(30, 0.15, 30, 0xCCCCCC, 0, -0.08, 0);
-        plat(28, 0.1, 28, 0xE8E8E8, 0, 0, 0);
+        plat(28, 0.1, 28, 0xE8E8E8, 0, 0, 0, 'calcada');
         predio('LOJA', 0xFF69B4, -8, -8, 4, 5, 4);
         predio('PARIS', 0xC084FC, 8, -8, 4, 6, 4);
         predio('PRAIA', 0x67E8F9, -8, 8, 4, 4, 4);
@@ -546,19 +700,32 @@
       load() {
         plat(35, 0.3, 35, 0, 0, -0.15, 0, true);
         const celeiro = new THREE.Group();
-        celeiro.add(mesh(new THREE.BoxGeometry(8, 4, 6), 0xCC0000, 0, 2, -8));
-        const telhado = mesh(new THREE.ConeGeometry(5.5, 2.5, 4), 0x8B0000, 0, 5.2, -8);
+        const paredeCeleiro = mesh(new THREE.BoxGeometry(8, 4, 6), 0xffffff, 0, 2, -8);
+        texturizar(paredeCeleiro, obterTexturaMadeira('#C23B22', '#8B2A18'), 4, 2);
+        celeiro.add(paredeCeleiro);
+        const telhado = mesh(new THREE.ConeGeometry(5.5, 2.5, 4), 0xffffff, 0, 5.2, -8);
+        texturizar(telhado, obterTexturaTelha('#5B3A29', '#432A1D'), 4, 2);
         telhado.rotation.y = Math.PI / 4;
         celeiro.add(telhado);
-        celeiro.add(mesh(new THREE.BoxGeometry(2, 2.5, 0.2), 0xFFFFFF, 0, 1.25, -4.9));
+        const gableCeleiro = mesh(new THREE.BoxGeometry(2, 2.5, 0.2), 0xFFFFFF, 0, 1.25, -4.9);
+        celeiro.add(gableCeleiro);
+        const janelaCeleiro = mesh(new THREE.CircleGeometry(0.55, 12), 0xBEE7FA, 0, 3.2, -4.85);
+        celeiro.add(janelaCeleiro);
         objs.push(celeiro); scene.add(celeiro);
         const galinheiro = new THREE.Group();
-        galinheiro.add(mesh(new THREE.BoxGeometry(5, 2, 4), 0xDEB887, 6, 1, 5));
-        galinheiro.add(mesh(new THREE.ConeGeometry(3.5, 1.5, 4), 0xCD853F, 6, 2.8, 5));
+        const paredeGalinheiro = mesh(new THREE.BoxGeometry(5, 2, 4), 0xffffff, 6, 1, 5);
+        texturizar(paredeGalinheiro, obterTexturaMadeira('#DDB27A', '#B98950'), 3, 1.5);
+        galinheiro.add(paredeGalinheiro);
+        const telhadoGalinheiro = mesh(new THREE.ConeGeometry(3.5, 1.5, 4), 0xffffff, 6, 2.8, 5);
+        texturizar(telhadoGalinheiro, obterTexturaTelha('#8B5A2B', '#6E4520'), 3, 2);
+        galinheiro.add(telhadoGalinheiro);
         galinheiro.add(mesh(new THREE.BoxGeometry(1.2, 1, 0.1), 0x654321, 6, 0.6, 7));
         objs.push(galinheiro); scene.add(galinheiro);
         cerca(-15, -15, 15, -15); cerca(15, -15, 15, 15);
         cerca(15, 15, -15, 15); cerca(-15, 15, -15, -15);
+        animalFazenda('Cow.gltf', 11, 11, 1.15, Math.PI * 0.75);
+        animalFazenda('Horse.gltf', -11, 11, 1.5, -Math.PI / 4);
+        animalFazenda('Donkey.gltf', 11, -11, 1.3, Math.PI / 2);
         [[-8, 3], [8, -3], [-5, -10]].forEach(([x, z]) => {
           const feno = mesh(new THREE.CylinderGeometry(0.6, 0.6, 1.2, 8), 0xFFD700, x, 0.6, z);
           feno.rotation.z = Math.PI / 2; objs.push(feno); scene.add(feno);
