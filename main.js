@@ -7,9 +7,10 @@
   const sessao = {
     code: '', nome: '', nomeMundo: '',
     cor: '#FF1493', pele: 'clara', cabelo: 'mega', corCabelo: 'castanho',
-    corpoTipo: 'boneca', olhos: 'grande', corOlhos: 'castanho', boca: 'sorriso',
+    corpoTipo: 'gata', olhos: 'grande', corOlhos: 'azul', boca: 'sorriso',
     expressao: 'feliz', top: 'basico', bottom: 'jeans', shoes: 'tenis',
-    chapeu: 'nenhum', pet: 'cachorro'
+    chapeu: 'nenhum', pet: 'cachorro',
+    batom: 'rosa', blush: 'rosa', sombra: 'roxo'
   };
 
   const $ = s => document.querySelector(s);
@@ -149,7 +150,7 @@
       $('#nome-mundo').textContent = sessao.nomeMundo;
       $('#codigo-mundo').textContent = sessao.code;
       const mini = $('#avatar-mini');
-      if (mini) mini.textContent = sessao.pet === 'unicornio' ? '🦄' : sessao.pet === 'gato' ? '🐱' : '✨';
+      if (mini) mini.textContent = sessao.pet ? sessao.pet[0].toUpperCase() : '*';
       window.MundoKids?.iniciar(sessao);
     }, 900);
   }
