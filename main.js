@@ -6,7 +6,8 @@
 
   const sessao = {
     code: '', nome: '', nomeMundo: '',
-    cor: '#FF1493', pele: 'clara', cabelo: 'spiky', corCabelo: 'castanho',
+    cor: '#FF1493', pele: 'clara', cabelo: 'mega', corCabelo: 'castanho',
+    corpoTipo: 'boneca', olhos: 'grande', corOlhos: 'castanho', boca: 'sorriso',
     expressao: 'feliz', top: 'basico', bottom: 'jeans', shoes: 'tenis',
     chapeu: 'nenhum', pet: 'cachorro'
   };
@@ -56,7 +57,10 @@
   $$('.cor').forEach(b => b.onclick = () => sel('#cores', b, 'cor', b.dataset.cor));
   $$('#cores-cabelo .cor').forEach(b => b.onclick = () => sel('#cores-cabelo', b, 'corCabelo', b.dataset.corCabelo));
   $$('#peles .opcao').forEach(b => b.onclick = () => sel('#peles', b, 'pele', b.dataset.pele));
-  $$('#expressoes .opcao').forEach(b => b.onclick = () => sel('#expressoes', b, 'expressao', b.dataset.expressao));
+  $$('#corpos .opcao').forEach(b => b.onclick = () => sel('#corpos', b, 'corpoTipo', b.dataset.corpoTipo));
+  $$('#olhos .opcao').forEach(b => b.onclick = () => sel('#olhos', b, 'olhos', b.dataset.olhos));
+  $$('#bocas .opcao').forEach(b => b.onclick = () => sel('#bocas', b, 'boca', b.dataset.boca));
+  $$('#cores-olhos .cor').forEach(b => b.onclick = () => sel('#cores-olhos', b, 'corOlhos', b.dataset.corOlhos));
   $$('#cabelos .opcao').forEach(b => b.onclick = () => sel('#cabelos', b, 'cabelo', b.dataset.cabelo));
   $$('#tops .opcao').forEach(b => b.onclick = () => sel('#tops', b, 'top', b.dataset.top));
   $$('#bottoms .opcao').forEach(b => b.onclick = () => sel('#bottoms', b, 'bottom', b.dataset.bottom));
