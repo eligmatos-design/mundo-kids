@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="theme-color" content="#FFB6C1">
-  <title>Mundo Kids - Seu mundo, seu avatar!</title>
+  <title>Mundo Kids - Estilo Angela</title>
   <link rel="manifest" href="/manifest.json">
   <link rel="stylesheet" href="/css/style.css">
 </head>
@@ -17,14 +17,14 @@
   <div class="bg-aw"></div>
   <div class="conteudo-centro">
     <div class="logo-aw">MUNDO<span>KIDS</span></div>
-    <p class="subtitulo">Crie seu avatar - Decore sua casa - Explore!</p>
+    <p class="subtitulo">Cuide do seu pet - Vista-se - Explore o apartamento!</p>
     <div class="botoes-principais">
       <button class="btn-aw btn-play" id="btn-entrar">JOGAR</button>
       <button class="btn-aw btn-sec" id="btn-criar">Criar mundo</button>
     </div>
     <div class="selos">
-      <span>Avatar</span><span>Casa</span><span>Escola</span>
-      <span>Loja</span><span>Pets</span><span>Fazenda</span>
+      <span>Sala</span><span>Quarto</span><span>Cozinha</span>
+      <span>Banheiro</span><span>Closet</span><span>Cidade</span>
     </div>
   </div>
 </section>
@@ -74,7 +74,8 @@
       <div class="aba-painel ativa" id="aba-corpo">
         <label>Tipo de corpo</label>
         <div class="opcoes" id="corpos">
-          <button class="opcao ativa" data-corpo-tipo="boneca">Boneca</button>
+          <button class="opcao ativa" data-corpo-tipo="gata">Gata Angela</button>
+          <button class="opcao" data-corpo-tipo="boneca">Boneca</button>
           <button class="opcao" data-corpo-tipo="normal">Normal</button>
           <button class="opcao" data-corpo-tipo="chibi">Chibi</button>
         </div>
@@ -217,26 +218,26 @@
     <div class="hud-topo">
       <div class="avatar-mini" id="avatar-mini">*</div>
       <div class="info-mundo">
-        <strong id="nome-mundo">Cidade</strong>
+        <strong id="nome-mundo">Sala</strong>
         <small id="codigo-mundo"></small>
       </div>
       <button class="hud-btn" id="btn-ajuda" title="Como jogar">?</button>
       <button class="hud-btn" id="btn-guarda-roupa" title="Guarda-roupa">R</button>
       <button class="hud-moedas" id="hud-moedas" onclick="abrirLoja()">$ 0</button>
       <span class="badge-online" id="badge-online">1 online</span>
+      <span class="versao-jogo" id="versao-jogo">v2</span>
     </div>
 
-    <div class="hud-pontos" id="hud-pontos">Explore a cidade!</div>
+    <div class="hud-pontos" id="hud-pontos">Bem-vinda ao apartamento!</div>
 
-    <nav class="nav-inferior">
-      <button class="nav-btn ativo" data-jogo="cidade" title="Cidade"><span class="nav-ico">C</span><small>Cidade</small></button>
-      <button class="nav-btn" data-jogo="casa" title="Minha Casa"><span class="nav-ico">H</span><small>Casa</small></button>
-      <button class="nav-btn" data-jogo="escola" title="Escola"><span class="nav-ico">E</span><small>Escola</small></button>
-      <button class="nav-btn" data-jogo="praia" title="Praia"><span class="nav-ico">P</span><small>Praia</small></button>
-      <button class="nav-btn" data-jogo="pizza" title="Pizzaria"><span class="nav-ico">Z</span><small>Pizza</small></button>
-      <button class="nav-btn" data-jogo="skate" title="Skate"><span class="nav-ico">S</span><small>Skate</small></button>
-      <button class="nav-btn" data-jogo="fazenda" title="Fazenda"><span class="nav-ico">F</span><small>Fazenda</small></button>
-      <button class="nav-btn" data-jogo="parque" title="Parque"><span class="nav-ico">K</span><small>Parque</small></button>
+    <nav class="nav-inferior nav-angela">
+      <button class="nav-btn ativo" data-jogo="casa" title="Sala"><small>Sala</small></button>
+      <button class="nav-btn" data-jogo="escola" title="Quarto"><small>Quarto</small></button>
+      <button class="nav-btn" data-jogo="pizza" title="Cozinha"><small>Cozinha</small></button>
+      <button class="nav-btn" data-jogo="praia" title="Banheiro"><small>Banho</small></button>
+      <button class="nav-btn" data-jogo="parque" title="Closet"><small>Closet</small></button>
+      <button class="nav-btn" data-jogo="cidade" title="Mapa"><small>Mapa</small></button>
+      <button class="nav-btn" data-jogo="skate" title="Cidade"><small>Cidade</small></button>
     </nav>
 
     <div class="barra-emotes">
@@ -275,6 +276,58 @@
     </div>
   </div>
 
+  <!-- Maquiagem (espelho) -->
+  <div class="mini oculto" id="maquiagem">
+    <div class="mini-painel">
+      <button class="loja-fechar" onclick="fecharMaquiagem()">X</button>
+      <h3>Maquiagem no espelho</h3>
+      <p class="mini-sub">Escolha batom, blush e sombra!</p>
+      <label>Batom</label>
+      <div class="cores mini-cores" id="cores-batom">
+        <button class="cor ativa" data-batom="rosa" style="background:#FF69B4"></button>
+        <button class="cor" data-batom="vermelho" style="background:#E63946"></button>
+        <button class="cor" data-batom="coral" style="background:#FF7F50"></button>
+        <button class="cor" data-batom="roxo" style="background:#9B59B6"></button>
+        <button class="cor" data-batom="nude" style="background:#D4918A"></button>
+      </div>
+      <label>Blush</label>
+      <div class="cores mini-cores" id="cores-blush">
+        <button class="cor ativa" data-blush="rosa" style="background:#FFB6C1"></button>
+        <button class="cor" data-blush="pessego" style="background:#FFCBA4"></button>
+        <button class="cor" data-blush="coral" style="background:#FF9999"></button>
+      </div>
+      <label>Sombra</label>
+      <div class="cores mini-cores" id="cores-sombra">
+        <button class="cor ativa" data-sombra="roxo" style="background:#9B59B6"></button>
+        <button class="cor" data-sombra="rosa" style="background:#FF69B4"></button>
+        <button class="cor" data-sombra="dourado" style="background:#FFD700"></button>
+        <button class="cor" data-sombra="azul" style="background:#3498DB"></button>
+        <button class="cor" data-sombra="verde" style="background:#2ECC71"></button>
+      </div>
+      <button class="btn-aw btn-play" id="btn-aplicar-maquiagem">Aplicar maquiagem!</button>
+    </div>
+  </div>
+
+  <!-- Minigame danca -->
+  <div class="mini oculto" id="danca-game">
+    <div class="mini-painel danca-painel">
+      <button class="loja-fechar" onclick="fecharDanca()">X</button>
+      <h3>Hora de dancar!</h3>
+      <p class="danca-pontos">Pontos: <span id="danca-pontos">0</span></p>
+      <div class="danca-alvo" id="danca-alvo">^</div>
+      <p class="danca-msg" id="danca-msg">Toque a seta igual!</p>
+      <div class="danca-setas">
+        <button class="danca-btn" data-seta="cima">^</button>
+        <div class="danca-meio">
+          <button class="danca-btn" data-seta="esq">&lt;</button>
+          <button class="danca-btn" data-seta="dir">&gt;</button>
+        </div>
+        <button class="danca-btn" data-seta="baixo">v</button>
+      </div>
+      <p class="danca-barra-wrap"><span id="danca-barra"></span></p>
+    </div>
+  </div>
+
   <!-- Tutorial de controles -->
   <div class="tutorial-controles" id="tutorial-controles">
     <div class="tutorial-box">
@@ -285,7 +338,9 @@
         <p class="tut-item tut-mobile">2. Ou arraste o <strong>joystick</strong> no canto esquerdo</p>
         <p class="tut-item tut-pc">2. Ou use as teclas <strong>W A S D</strong></p>
         <p class="tut-item">3. Botao rosa = <strong>Pular</strong></p>
-        <p class="tut-item">4. Botao roxo = <strong>Interagir</strong> (loja, portas)</p>
+        <p class="tut-item">4. Botao roxo = <strong>Interagir</strong> (maquiagem, danca, loja)</p>
+        <p class="tut-item">5. <strong>Banheiro</strong> = maquiagem no espelho</p>
+        <p class="tut-item">6. <strong>Sala/Quarto</strong> = minigame de danca</p>
       </div>
       <button class="btn-aw btn-play" id="btn-fechar-tutorial">Entendi! Vamos jogar</button>
     </div>
