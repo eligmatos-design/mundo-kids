@@ -7,6 +7,11 @@
   const CORES_PELE = { clara: 0xFFDBAC, media: 0xE8B88A, morena: 0xC68642, escura: 0x8D5524 };
   const CORES_CABELO = { castanho: 0x4A3728, loiro: 0xFFD700, ruivo: 0xFF6B35, preto: 0x222222, rosa: 0xFF69B4, azul: 0x3498DB, roxo: 0x9B59B6 };
   const CORES_OLHOS = { castanho: 0x8B4513, azul: 0x3498DB, verde: 0x2ECC71, roxo: 0x9B59B6, preto: 0x222222, rosa: 0xFF69B4 };
+  const CORES_MAQUIAGEM = {
+    batom: { rosa: 0xFF69B4, vermelho: 0xE63946, coral: 0xFF7F50, roxo: 0x9B59B6, nude: 0xD4918A },
+    blush: { rosa: 0xFFB6C1, pessego: 0xFFCBA4, coral: 0xFF9999 },
+    sombra: { roxo: 0x9B59B6, rosa: 0xFF69B4, dourado: 0xFFD700, azul: 0x3498DB, verde: 0x2ECC71 }
+  };
 
   function M(cor, em) {
     return new THREE.MeshStandardMaterial({
@@ -48,22 +53,34 @@
     g.add(mesh(new THREE.SphereGeometry(0.04, 6, 4), peleCor, 0, 1.18, 0.48));
   }
 
-  function addBoca(g, boca) {
+  function addBoca(g, boca, corBatom) {
+    const lip = corBatom || 0xFF6666;
     const y = 1.06, z = 0.46;
     if (boca === 'sorriso' || boca === 'feliz') {
-      g.add(mesh(new THREE.TorusGeometry(0.11, 0.028, 4, 10, Math.PI), 0xFF6666, 0, y, z));
-      g.add(mesh(new THREE.SphereGeometry(0.02, 4, 4), 0xFFAAAA, -0.06, y + 0.02, z - 0.01));
-      g.add(mesh(new THREE.SphereGeometry(0.02, 4, 4), 0xFFAAAA, 0.06, y + 0.02, z - 0.01));
+      g.add(mesh(new THREE.TorusGeometry(0.11, 0.028, 4, 10, Math.PI), lip, 0, y, z));
+      g.add(mesh(new THREE.SphereGeometry(0.02, 4, 4), lip, -0.06, y + 0.02, z - 0.01));
+      g.add(mesh(new THREE.SphereGeometry(0.02, 4, 4), lip, 0.06, y + 0.02, z - 0.01));
     } else if (boca === 'biquinho') {
-      g.add(mesh(new THREE.SphereGeometry(0.05, 6, 4), 0xFF8888, 0, y - 0.02, z + 0.02));
+      g.add(mesh(new THREE.SphereGeometry(0.05, 6, 4), lip, 0, y - 0.02, z + 0.02));
     } else if (boca === 'surpresa') {
-      g.add(mesh(new THREE.TorusGeometry(0.05, 0.025, 4, 8, Math.PI * 2), 0xFF6666, 0, y, z));
+      g.add(mesh(new THREE.TorusGeometry(0.05, 0.025, 4, 8, Math.PI * 2), lip, 0, y, z));
     } else if (boca === 'lingua') {
-      g.add(mesh(new THREE.TorusGeometry(0.09, 0.025, 4, 8, Math.PI), 0xFF6666, 0, y, z));
+      g.add(mesh(new THREE.TorusGeometry(0.09, 0.025, 4, 8, Math.PI), lip, 0, y, z));
       g.add(mesh(new THREE.SphereGeometry(0.04, 6, 4), 0xFF4444, 0, y - 0.04, z + 0.02));
     } else {
-      g.add(mesh(new THREE.BoxGeometry(0.1, 0.02, 0.02), 0xCC6666, 0, y, z));
+      g.add(mesh(new THREE.BoxGeometry(0.1, 0.02, 0.02), lip, 0, y, z));
     }
+  }
+
+  function addMaquiagem(g, batom, blush, sombra) {
+    const corBlush = CORES_MAQUIAGEM.blush[blush] || CORES_MAQUIAGEM.blush.rosa;
+    const corSombra = CORES_MAQUIAGEM.sombra[sombra] || CORES_MAQUIAGEM.sombra.roxo;
+    [[-0.32, 1.14, 0.41], [0.32, 1.14, 0.41]].forEach(([x, y, z]) => {
+      g.add(mesh(new THREE.SphereGeometry(0.11, 8, 6), corBlush, x, y, z));
+    });
+    [[-0.17, 1.38, 0.48], [0.17, 1.38, 0.48]].forEach(([x, y, z]) => {
+      g.add(mesh(new THREE.SphereGeometry(0.06, 6, 4), corSombra, x, y - 0.04, z - 0.02));
+    });
   }
 
   function addCabelo(g, estilo, cc) {
@@ -120,6 +137,42 @@
     }
   }
 
+  function addCorpoGata(g, topCor, botCor, sapCor) {
+    const fur = 0xFFF8F5;
+    g.add(mesh(new THREE.SphereGeometry(0.34, 14, 12), fur, 0, 0.56, 0));
+    g.add(mesh(new THREE.SphereGeometry(0.6, 20, 18), fur, 0, 1.38, 0.02));
+    [[-0.24, 1.9, 0.08], [0.24, 1.9, 0.08]].forEach(([x, y, z]) => {
+      const orelha = mesh(new THREE.ConeGeometry(0.13, 0.32, 4), fur, x, y, z);
+      orelha.rotation.z = x < 0 ? 0.35 : -0.35;
+      g.add(orelha);
+      g.add(mesh(new THREE.ConeGeometry(0.07, 0.16, 4), 0xFFB6C1, x, y + 0.04, z + 0.03));
+    });
+    g.add(mesh(new THREE.CylinderGeometry(0.3, 0.36, 0.42, 12), topCor, 0, 0.64, 0));
+    g.add(mesh(new THREE.CylinderGeometry(0.32, 0.28, 0.18, 10), botCor, 0, 0.38, 0));
+    const pernaL = mesh(new THREE.CylinderGeometry(0.08, 0.1, 0.26, 8), botCor, -0.15, 0.16, 0.06);
+    const pernaR = mesh(new THREE.CylinderGeometry(0.08, 0.1, 0.26, 8), botCor, 0.15, 0.16, 0.06);
+    g.add(pernaL, pernaR);
+    g.add(mesh(new THREE.SphereGeometry(0.1, 8, 6), sapCor, -0.15, 0.03, 0.1));
+    g.add(mesh(new THREE.SphereGeometry(0.1, 8, 6), sapCor, 0.15, 0.03, 0.1));
+    const rabo = mesh(new THREE.CylinderGeometry(0.07, 0.04, 0.6, 8), fur, 0, 0.48, -0.38);
+    rabo.rotation.x = -0.65;
+    g.add(rabo);
+    [[-0.18, 1.18, 0.54], [-0.18, 1.12, 0.54], [0.18, 1.18, 0.54], [0.18, 1.12, 0.54]].forEach(([x, y, z]) => {
+      g.add(mesh(new THREE.BoxGeometry(0.22, 0.006, 0.006), 0xDDDDDD, x, y, z));
+    });
+    const bracoL = mesh(new THREE.CylinderGeometry(0.065, 0.075, 0.34, 8), fur, -0.36, 0.66, 0);
+    const bracoR = mesh(new THREE.CylinderGeometry(0.065, 0.075, 0.34, 8), fur, 0.36, 0.66, 0);
+    g.add(bracoL, bracoR);
+    g.add(mesh(new THREE.SphereGeometry(0.075, 8, 6), fur, -0.36, 0.46, 0.02));
+    g.add(mesh(new THREE.SphereGeometry(0.075, 8, 6), fur, 0.36, 0.46, 0.02));
+    g.userData.pernaL = pernaL;
+    g.userData.pernaR = pernaR;
+    g.userData.bracoL = bracoL;
+    g.userData.bracoR = bracoR;
+    g.userData.rabo = rabo;
+    return { headR: 0.6, escala: 1 };
+  }
+
   function addCorpoBoneca(g, peleCor, topCor, bottomCor, shoesCor, tipo) {
     const escala = tipo === 'chibi' ? 0.85 : tipo === 'realista' ? 1.08 : 1;
     // Pescoço
@@ -146,7 +199,8 @@
       cor = '#FF1493', pele = 'clara', cabelo = 'mega', corCabelo = 'castanho',
       chapeu = 'nenhum', top = 'basico', bottom = 'jeans', shoes = 'tenis',
       expressao = 'feliz', boca, olhos = 'grande', corOlhos = 'castanho',
-      corpoTipo = 'boneca', nome = 'Player'
+      corpoTipo = 'boneca', nome = 'Player',
+      batom = 'rosa', blush = 'rosa', sombra = 'roxo'
     } = opts;
 
     const g = new THREE.Group();
@@ -163,16 +217,21 @@
     const botCor = bots[bottom] || 0x334488;
     const sapCor = sapatos[shoes] || 0xFFFFFF;
 
-    addCorpoBoneca(g, peleCor, topCor, botCor, sapCor, corpoTipo);
+    let corpoInfo;
+    if (corpoTipo === 'gata') {
+      corpoInfo = addCorpoGata(g, topCor, botCor, sapCor);
+    } else {
+      corpoInfo = addCorpoBoneca(g, peleCor, topCor, botCor, sapCor, corpoTipo);
+    }
 
-    // Bochechas rosadas
-    [[-0.3, 1.12, 0.4], [0.3, 1.12, 0.4]].forEach(([x, y, z]) => {
-      g.add(mesh(new THREE.SphereGeometry(0.08, 6, 4), 0xFFB6C1, x, y, z));
-    });
+    const corBatom = CORES_MAQUIAGEM.batom[batom] || CORES_MAQUIAGEM.batom.rosa;
 
-    addOlhos(g, olhos, corOlhos, peleCor);
-    addBoca(g, bocaFinal);
-    addCabelo(g, cabelo, cc);
+    // Bochechas e sombra (maquiagem Angela)
+    addMaquiagem(g, batom, blush, sombra);
+
+    addOlhos(g, olhos, corOlhos, corpoTipo === 'gata' ? 0xFFF8F5 : peleCor);
+    addBoca(g, bocaFinal, corBatom);
+    if (cabelo !== 'careca') addCabelo(g, cabelo, cc);
 
     // Acessórios
     if (chapeu === 'coroa') g.add(mesh(new THREE.TorusGeometry(0.38, 0.06, 4, 12), 0xFFD700, 0, 1.85, 0, 1));
@@ -195,13 +254,13 @@
       g.add(mesh(new THREE.BoxGeometry(0.08, 0.08, 0.08), 0xFF69B4, 0, 1.75, 0.1));
     }
 
-    // Pernas boneca
+    // Pernas e bracos (so humanos — gata ja tem corpo completo)
+    if (corpoTipo !== 'gata') {
     const pernaH = corpoTipo === 'boneca' ? 0.38 : 0.32;
     const pernaL = mesh(new THREE.CylinderGeometry(0.09, 0.11, pernaH, 8), botCor, -0.13, 0.14, 0);
     const pernaR = mesh(new THREE.CylinderGeometry(0.09, 0.11, pernaH, 8), botCor, 0.13, 0.14, 0);
     g.add(pernaL, pernaR);
 
-    // Sapatos
     if (shoes === 'salto') {
       [[-0.13, 0.06, 0.05], [0.13, 0.06, 0.05]].forEach(([x, y, z]) => {
         g.add(mesh(new THREE.BoxGeometry(0.12, 0.06, 0.2), sapCor, x, y, z));
@@ -212,12 +271,16 @@
       g.add(mesh(new THREE.BoxGeometry(0.14, 0.08, 0.24), sapCor, 0.13, 0.04, 0.05));
     }
 
-    // Braços com mãozinhas
     const bracoL = mesh(new THREE.CylinderGeometry(0.06, 0.07, 0.38, 6), peleCor, -0.32, 0.62, 0);
     const bracoR = mesh(new THREE.CylinderGeometry(0.06, 0.07, 0.38, 6), peleCor, 0.32, 0.62, 0);
     g.add(bracoL, bracoR);
     g.add(mesh(new THREE.SphereGeometry(0.07, 6, 4), peleCor, -0.32, 0.4, 0));
     g.add(mesh(new THREE.SphereGeometry(0.07, 6, 4), peleCor, 0.32, 0.4, 0));
+    g.userData.pernaL = pernaL;
+    g.userData.pernaR = pernaR;
+    g.userData.bracoL = bracoL;
+    g.userData.bracoR = bracoR;
+    }
 
     if (nome) {
       const cv = document.createElement('canvas'); cv.width = 256; cv.height = 48;
@@ -230,10 +293,6 @@
       g.add(sp);
     }
 
-    g.userData.pernaL = pernaL;
-    g.userData.pernaR = pernaR;
-    g.userData.bracoL = bracoL;
-    g.userData.bracoR = bracoR;
     return g;
   }
 
@@ -263,9 +322,11 @@
     mesh.userData.pernaR.rotation.x = -s;
     mesh.userData.bracoL.rotation.x = -s * 0.6;
     mesh.userData.bracoR.rotation.x = s * 0.6;
+    if (mesh.userData.rabo) mesh.userData.rabo.rotation.y = andando ? Math.sin(t * 12) * 0.35 : Math.sin(t * 2) * 0.08;
   }
 
   let previewScene, previewCam, previewRen, previewMesh, previewPet, previewAnim;
+  let previewRot = 0, previewAuto = true, previewDrag = false, previewLastX = 0;
 
   function iniciarPreview(canvas, opts) {
     if (!canvas || !window.THREE) return;
@@ -283,13 +344,31 @@
     const luz2 = new THREE.DirectionalLight(0xFFE4F0, 0.4);
     luz2.position.set(-2, 2, -1); previewScene.add(luz2);
     previewScene.add(mesh(new THREE.CylinderGeometry(1.8, 1.8, 0.1, 24), 0xFFB6C1, 0, -0.05, 0));
+
+    function comecarDrag(x) { previewDrag = true; previewAuto = false; previewLastX = x; }
+    function moverDrag(x) {
+      if (!previewDrag) return;
+      previewRot += (x - previewLastX) * 0.012;
+      previewLastX = x;
+    }
+    function pararDrag() { previewDrag = false; }
+    canvas.addEventListener('mousedown', e => comecarDrag(e.clientX));
+    canvas.addEventListener('mousemove', e => moverDrag(e.clientX));
+    canvas.addEventListener('mouseup', pararDrag);
+    canvas.addEventListener('mouseleave', pararDrag);
+    canvas.addEventListener('touchstart', e => comecarDrag(e.touches[0].clientX), { passive: true });
+    canvas.addEventListener('touchmove', e => moverDrag(e.touches[0].clientX), { passive: true });
+    canvas.addEventListener('touchend', pararDrag);
+
     atualizarPreview(opts);
     cancelAnimationFrame(previewAnim);
-    let t0 = 0;
     function loop(t) {
       previewAnim = requestAnimationFrame(loop);
-      t0 = t;
-      if (previewMesh) { previewMesh.rotation.y += 0.007; animarCaminhada(previewMesh, t / 200, true); }
+      if (previewMesh) {
+        if (previewAuto) previewRot += 0.007;
+        previewMesh.rotation.y = previewRot;
+        animarCaminhada(previewMesh, t / 200, true);
+      }
       if (previewPet) {
         previewPet.position.x = Math.sin(t / 800) * 0.8 - 1.2;
         previewPet.position.z = Math.cos(t / 800) * 0.5;
@@ -312,5 +391,5 @@
     }
   }
 
-  window.AvatarBuilder = { criar, criarPet, animarCaminhada, iniciarPreview, atualizarPreview, CORES_PELE, CORES_CABELO, CORES_OLHOS };
+  window.AvatarBuilder = { criar, criarPet, animarCaminhada, iniciarPreview, atualizarPreview, CORES_PELE, CORES_CABELO, CORES_OLHOS, CORES_MAQUIAGEM };
 })();
