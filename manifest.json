@@ -1,0 +1,17 @@
+{
+  "name": "Mundo Kids",
+  "short_name": "MundoKids",
+  "description": "Jogo infantil — mundos privados, só voz, sem chat",
+  "start_url": "/",
+  "display": "fullscreen",
+  "orientation": "any",
+  "background_color": "#1a0533",
+  "theme_color": "#1a0533",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌍</text></svg>",
+      "sizes": "512x512",
+      "type": "image/svg+xml"
+    }
+  ]
+}
