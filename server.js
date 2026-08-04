@@ -101,10 +101,11 @@ const modoStatic = configurarArquivosEstaticos();
 function enviarArquivo(res, caminhos) {
   for (const p of caminhos) {
     if (p && fs.existsSync(p)) {
-      if (p.endsWith('.html')) res.type('html');
-      else if (p.endsWith('.css')) res.type('css');
-      else if (p.endsWith('.js')) res.type('js');
-      res.charset('utf-8');
+      let tipo = 'application/octet-stream; charset=utf-8';
+              if (p.endsWith('.html')) tipo = 'text/html; charset=utf-8';
+              else if (p.endsWith('.css')) tipo = 'text/css; charset=utf-8';
+              else if (p.endsWith('.js')) tipo = 'application/javascript; charset=utf-8';
+              res.set('Content-Type', tipo);
       return res.sendFile(p);
     }
   }
@@ -135,8 +136,7 @@ function enviarIndex(res) {
   ];
   for (const p of candidatos) {
     if (fs.existsSync(p)) {
-      res.type('html');
-      res.charset('utf-8');
+      res.set('Content-Type', 'text/html; charset=utf-8');
       return res.sendFile(p);
     }
   }
