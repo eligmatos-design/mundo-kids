@@ -5,6 +5,7 @@
   'use strict';
 
   let scene, camera, renderer, socket, meuId, nuvens;
+  let camPos = null, camLook = null;
   let playerMesh, petMesh, skateMesh, outros = {};
   let jogoAtual = 'cidade';
   let plats = [], objs = [], cols = [], anims = [];
@@ -47,16 +48,47 @@
 
   // ── Helpers 3D ──
   function M(cor, em = 0) {
-    return new THREE.MeshStandardMaterial({ color: cor, roughness: 0.6, metalness: em ? 0.5 : 0, emissive: em ? cor : 0, emissiveIntensity: em ? 0.25 : 0 });
+    return new THREE.MeshStandardMaterial({ color: cor, roughness: 0.7, metalness: em ? 0.5 : 0, emissive: em ? cor : 0, emissiveIntensity: em ? 0.25 : 0 });
   }
   function mesh(g, cor, x, y, z, em) {
     const m = new THREE.Mesh(g, M(cor, em));
     m.position.set(x, y, z); m.castShadow = true; m.receiveShadow = true;
     return m;
   }
+
+  // Textura de grama gerada por canvas — deixa o chao mais realista que uma cor solida
+  let texturaGrama = null;
+  function obterTexturaGrama() {
+    if (texturaGrama) return texturaGrama;
+    const cv = document.createElement('canvas');
+    cv.width = cv.height = 128;
+    const cx = cv.getContext('2d');
+    cx.fillStyle = '#6ecf6e'; cx.fillRect(0, 0, 128, 128);
+    for (let i = 0; i < 900; i++) {
+      const x = Math.random() * 128, y = Math.random() * 128;
+      cx.strokeStyle = Math.random() > 0.5 ? '#5cb85c' : '#84e084';
+      cx.lineWidth = 1;
+      cx.beginPath();
+      cx.moveTo(x, y);
+      cx.lineTo(x + (Math.random() - 0.5) * 3, y - 3 - Math.random() * 3);
+      cx.stroke();
+    }
+    texturaGrama = new THREE.CanvasTexture(cv);
+    texturaGrama.wrapS = texturaGrama.wrapT = THREE.RepeatWrapping;
+    return texturaGrama;
+  }
+
   function plat(w, h, d, cor, x, y, z, grama) {
     const p = mesh(new THREE.BoxGeometry(w, h, d), grama ? 0x5cb85c : cor, x, y, z);
-    if (grama) { p.add(mesh(new THREE.BoxGeometry(w, 0.06, d), 0x6ecf6e, 0, h / 2 + 0.03, 0)); }
+    if (grama) {
+      const topo = mesh(new THREE.BoxGeometry(w, 0.06, d), 0xffffff, 0, h / 2 + 0.03, 0);
+      const tex = obterTexturaGrama().clone();
+      tex.needsUpdate = true;
+      tex.repeat.set(Math.max(1, Math.round(w / 3)), Math.max(1, Math.round(d / 3)));
+      topo.material.map = tex;
+      topo.material.needsUpdate = true;
+      p.add(topo);
+    }
     p.userData.plat = true; plats.push(p); scene.add(p); return p;
   }
 
@@ -1063,8 +1095,17 @@
       petMesh.position.y = jog.y + Math.sin(t * 5) * 0.06;
     }
 
-    camera.position.set(jog.x - Math.sin(jog.rot) * 9, jog.y + 5.5, jog.z - Math.cos(jog.rot) * 9);
-    camera.lookAt(jog.x, jog.y + 1.5, jog.z);
+    const alvoCamX = jog.x - Math.sin(jog.rot) * 9, alvoCamY = jog.y + 5.5, alvoCamZ = jog.z - Math.cos(jog.rot) * 9;
+    if (!camPos) { camPos = new THREE.Vector3(alvoCamX, alvoCamY, alvoCamZ); camLook = new THREE.Vector3(jog.x, jog.y + 1.5, jog.z); }
+    const suaviza = 1 - Math.pow(0.0001, dt); // suavizacao independente de fps — camera cinematografica, sem "pulos"
+    camPos.x += (alvoCamX - camPos.x) * suaviza;
+    camPos.y += (alvoCamY - camPos.y) * suaviza;
+    camPos.z += (alvoCamZ - camPos.z) * suaviza;
+    camLook.x += (jog.x - camLook.x) * suaviza;
+    camLook.y += (jog.y + 1.5 - camLook.y) * suaviza;
+    camLook.z += (jog.z - camLook.z) * suaviza;
+    camera.position.copy(camPos);
+    camera.lookAt(camLook);
 
     Object.values(outros).forEach(o => {
       o.mesh.position.x += (o.tx - o.mesh.position.x) * .15;
@@ -1097,6 +1138,11 @@
     renderer.setSize(innerWidth, innerHeight);
     renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
     renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.outputEncoding = THREE.sRGBEncoding;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.15;
+    camPos = null; camLook = null;
 
     playerMesh = avatar(optsAvatar());
     scene.add(playerMesh);

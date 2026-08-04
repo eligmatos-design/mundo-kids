@@ -15,7 +15,7 @@
 
   function M(cor, em) {
     return new THREE.MeshStandardMaterial({
-      color: cor, roughness: 0.5, metalness: em ? 0.35 : 0,
+      color: cor, roughness: 0.6, metalness: em ? 0.35 : 0,
       emissive: em ? cor : 0, emissiveIntensity: em ? 0.15 : 0
     });
   }
@@ -33,16 +33,22 @@
       anime:   { branco: 0.15, iris: 0.09, pupila: 0.025, brilho: 0.028, y: 1.35, z: 0.45 }
     };
     const o = configs[tipo] || configs.grande;
+    const olhos = [];
     [[-0.17, o.y, o.z], [0.17, o.y, o.z]].forEach(([x, y, z]) => {
-      g.add(mesh(new THREE.SphereGeometry(o.branco, 10, 8), 0xffffff, x, y, z));
-      g.add(mesh(new THREE.SphereGeometry(o.iris, 8, 6), corIris, x + 0.01, y, z + 0.04));
-      g.add(mesh(new THREE.SphereGeometry(o.pupila, 6, 4), 0x111111, x + 0.02, y, z + 0.07));
-      g.add(mesh(new THREE.SphereGeometry(o.brilho, 4, 4), 0xffffff, x + 0.05, y + 0.03, z + 0.09));
+      const grupoOlho = new THREE.Group();
+      grupoOlho.position.set(x, y, z);
+      grupoOlho.add(mesh(new THREE.SphereGeometry(o.branco, 10, 8), 0xffffff, 0, 0, 0));
+      grupoOlho.add(mesh(new THREE.SphereGeometry(o.iris, 8, 6), corIris, 0.01, 0, 0.04));
+      grupoOlho.add(mesh(new THREE.SphereGeometry(o.pupila, 6, 4), 0x111111, 0.02, 0, 0.07));
+      grupoOlho.add(mesh(new THREE.SphereGeometry(o.brilho, 4, 4), 0xffffff, 0.05, 0.03, 0.09));
       // Cílios
       if (tipo === 'anime' || tipo === 'grande') {
-        g.add(mesh(new THREE.BoxGeometry(0.12, 0.015, 0.02), 0x222222, x, y + o.branco * 0.7, z + 0.02));
+        grupoOlho.add(mesh(new THREE.BoxGeometry(0.12, 0.015, 0.02), 0x222222, 0, o.branco * 0.7, 0.02));
       }
+      g.add(grupoOlho);
+      olhos.push(grupoOlho);
     });
+    g.userData.olhos = olhos;
     // Sobrancelhas
     [[-0.17, o.y + 0.12, o.z - 0.02], [0.17, o.y + 0.12, o.z - 0.02]].forEach(([x, y, z]) => {
       const sobr = mesh(new THREE.BoxGeometry(0.1, 0.025, 0.03), 0x4A3728, x, y, z);
@@ -293,6 +299,7 @@
       g.add(sp);
     }
 
+    g.userData.blinkOffset = Math.random() * 4;
     return g;
   }
 
@@ -316,13 +323,27 @@
   }
 
   function animarCaminhada(mesh, t, andando) {
-    if (!mesh?.userData?.pernaL) return;
-    const s = andando ? Math.sin(t * 12) * 0.4 : 0;
-    mesh.userData.pernaL.rotation.x = s;
-    mesh.userData.pernaR.rotation.x = -s;
-    mesh.userData.bracoL.rotation.x = -s * 0.6;
-    mesh.userData.bracoR.rotation.x = s * 0.6;
-    if (mesh.userData.rabo) mesh.userData.rabo.rotation.y = andando ? Math.sin(t * 12) * 0.35 : Math.sin(t * 2) * 0.08;
+    if (!mesh?.userData) return;
+    if (mesh.userData.pernaL) {
+      const s = andando ? Math.sin(t * 12) * 0.4 : 0;
+      mesh.userData.pernaL.rotation.x = s;
+      mesh.userData.pernaR.rotation.x = -s;
+      mesh.userData.bracoL.rotation.x = -s * 0.6;
+      mesh.userData.bracoR.rotation.x = s * 0.6;
+      if (mesh.userData.rabo) mesh.userData.rabo.rotation.y = andando ? Math.sin(t * 12) * 0.35 : Math.sin(t * 2) * 0.08;
+    }
+    // Balanco sutil parado (respiracao) — deixa o boneco "vivo" em vez de estatico
+    if (!andando) mesh.position.y += Math.sin(t * 1.6) * 0.018;
+    // Piscar periodico dos olhos
+    if (mesh.userData.olhos) {
+      const ciclo = (t + (mesh.userData.blinkOffset || 0)) % 3.6;
+      let escalaY = 1;
+      if (ciclo > 3.45) {
+        const p = (ciclo - 3.45) / 0.15;
+        escalaY = p < 0.5 ? 1 - (p / 0.5) * 0.9 : 0.1 + ((p - 0.5) / 0.5) * 0.9;
+      }
+      mesh.userData.olhos.forEach(o => { o.scale.y = escalaY; });
+    }
   }
 
   let previewScene, previewCam, previewRen, previewMesh, previewPet, previewAnim;

@@ -157,9 +157,9 @@ window.FX = (function () {
   }
 
   function luzes(scene) {
-    scene.add(new THREE.HemisphereLight(0x87CEEB, 0x3d5c3a, 0.5));
-    scene.add(new THREE.AmbientLight(0xffffff, 0.35));
-    const sol = new THREE.DirectionalLight(0xfff5e6, 1.0);
+    scene.add(new THREE.HemisphereLight(0x9fd3ff, 0x4a6b3a, 0.55));
+    scene.add(new THREE.AmbientLight(0xffffff, 0.28));
+    const sol = new THREE.DirectionalLight(0xfff2df, 1.15);
     sol.position.set(30, 50, 20);
     sol.castShadow = true;
     sol.shadow.mapSize.set(2048, 2048);
@@ -169,7 +169,13 @@ window.FX = (function () {
     sol.shadow.camera.right = 40;
     sol.shadow.camera.top = 40;
     sol.shadow.camera.bottom = -40;
+    sol.shadow.bias = -0.0015;
+    sol.shadow.radius = 3;
     scene.add(sol);
+    // Luz de preenchimento suave (lado oposto do sol) — sombras menos duras, mais realistas
+    const preenchimento = new THREE.DirectionalLight(0xcfe8ff, 0.28);
+    preenchimento.position.set(-25, 20, -15);
+    scene.add(preenchimento);
     return sol;
   }
 
