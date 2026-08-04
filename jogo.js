@@ -13,27 +13,31 @@
   let moedas = 0, emoteTimer = 0, emoteAtual = null;
   let noSkate = false, movelAtual = 'sofa', andando = false;
   let bonusPego = false;
+  let alvoMov = null, marcadorAlvo = null;
+  const raycaster = new THREE.Raycaster();
+  const planoChao = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+  const pontoRay = new THREE.Vector3();
 
   const LOJA_ITENS = [
-    { id: 'coroa', nome: '👑 Coroa', preco: 100, tipo: 'chapeu', cat: 'acessorios' },
-    { id: 'oculos', nome: '😎 Óculos', preco: 80, tipo: 'chapeu', cat: 'acessorios' },
-    { id: 'asa', nome: '🦋 Asas', preco: 200, tipo: 'chapeu', cat: 'acessorios' },
-    { id: 'chapeu', nome: '🎩 Chapéu', preco: 60, tipo: 'chapeu', cat: 'acessorios' },
-    { id: 'top_rosa', nome: '💗 Blusa Rosa', preco: 70, tipo: 'top', val: 'rosa', cat: 'roupas' },
-    { id: 'top_verde', nome: '💚 Blusa Verde', preco: 70, tipo: 'top', val: 'verde', cat: 'roupas' },
-    { id: 'bottom_saia', nome: '👗 Saia', preco: 65, tipo: 'bottom', val: 'saia', cat: 'roupas' },
-    { id: 'shoes_botas', nome: '🥾 Botas', preco: 55, tipo: 'shoes', val: 'botas', cat: 'roupas' },
-    { id: 'unicornio', nome: '🦄 Unicórnio', preco: 150, tipo: 'pet', val: 'unicornio', cat: 'pets' },
-    { id: 'dragao', nome: '🐉 Dragão', preco: 250, tipo: 'pet', val: 'dragao', cat: 'pets' },
-    { id: 'skate_dourado', nome: '🛹 Skate Dourado', preco: 120, tipo: 'skate', cat: 'acessorios' }
+    { id: 'coroa', nome: 'Coroa', preco: 100, tipo: 'chapeu', cat: 'acessorios' },
+    { id: 'oculos', nome: 'Oculos', preco: 80, tipo: 'chapeu', cat: 'acessorios' },
+    { id: 'asa', nome: 'Asas', preco: 200, tipo: 'chapeu', cat: 'acessorios' },
+    { id: 'chapeu', nome: 'Chapeu', preco: 60, tipo: 'chapeu', cat: 'acessorios' },
+    { id: 'top_rosa', nome: 'Blusa Rosa', preco: 70, tipo: 'top', val: 'rosa', cat: 'roupas' },
+    { id: 'top_verde', nome: 'Blusa Verde', preco: 70, tipo: 'top', val: 'verde', cat: 'roupas' },
+    { id: 'bottom_saia', nome: 'Saia', preco: 65, tipo: 'bottom', val: 'saia', cat: 'roupas' },
+    { id: 'shoes_botas', nome: 'Botas', preco: 55, tipo: 'shoes', val: 'botas', cat: 'roupas' },
+    { id: 'unicornio', nome: 'Unicornio', preco: 150, tipo: 'pet', val: 'unicornio', cat: 'pets' },
+    { id: 'dragao', nome: 'Dragao', preco: 250, tipo: 'pet', val: 'dragao', cat: 'pets' },
+    { id: 'skate_dourado', nome: 'Skate Dourado', preco: 120, tipo: 'skate', cat: 'acessorios' }
   ];
   const MOVEL_CATALOG = [
-    { id: 'sofa', nome: '🛋️ Sofá', cor: 0xFF69B4, w: 2, h: 0.8, d: 1 },
-    { id: 'cama', nome: '🛏️ Cama', cor: 0x9B59B6, w: 2, h: 0.5, d: 2.5 },
-    { id: 'tv', nome: '📺 TV', cor: 0x222222, w: 1.5, h: 1, d: 0.2 },
-    { id: 'mesa', nome: '🪑 Mesa', cor: 0xDEB887, w: 1.2, h: 0.7, d: 1.2 },
-    { id: 'planta', nome: '🪴 Planta', cor: 0x2ECC71, w: 0.5, h: 0.8, d: 0.5 },
-    { id: 'luminaria', nome: '💡 Lâmpada', cor: 0xFFD700, w: 0.4, h: 1.2, d: 0.4 }
+    { id: 'sofa', nome: 'Sofa', cor: 0xFF69B4, w: 2, h: 0.8, d: 1 },
+    { id: 'cama', nome: 'Cama', cor: 0xFFB6D9, w: 2, h: 0.5, d: 2.5 },
+    { id: 'tv', nome: 'TV', cor: 0x222222, w: 1.5, h: 1, d: 0.2 },
+    { id: 'mesa', nome: 'Mesa', cor: 0xDEB887, w: 1.2, h: 0.7, d: 1.2 },
+    { id: 'planta', nome: 'Planta', cor: 0x98D8AA, w: 0.5, h: 0.8, d: 0.5 },
+    { id: 'luminaria', nome: 'Lampada', cor: 0xFFE066, w: 0.4, h: 1.2, d: 0.4 }
   ];
   const comprados = new Set(JSON.parse(localStorage.getItem('mk_comprados') || '[]'));
   moedas = parseInt(localStorage.getItem('mk_moedas') || '50', 10);
@@ -94,7 +98,8 @@
       cor: sessao.cor, pele: sessao.pele, cabelo: sessao.cabelo, corCabelo: sessao.corCabelo,
       chapeu: sessao.chapeu, top: sessao.top, bottom: sessao.bottom, shoes: sessao.shoes,
       expressao: sessao.expressao, boca: sessao.boca, olhos: sessao.olhos, corOlhos: sessao.corOlhos,
-      corpoTipo: sessao.corpoTipo, nome: sessao.nome
+      corpoTipo: sessao.corpoTipo, nome: sessao.nome,
+      batom: sessao.batom, blush: sessao.blush, sombra: sessao.sombra
     };
   }
 
@@ -205,214 +210,223 @@
     }
   }
 
-  // ── Zonas PK XD ──
+  // ── Apartamento estilo Angela ──
+  const CHAO = 0xFFE4EC, PAREDE = 0xFFF8F0, ROSA = 0xFFB6D9, MINT = 0xB8E6D5;
+
+  function apAngela(w, d, chao, parede) {
+    plat(w, 0.12, d, chao, 0, -0.06, 0);
+    const hw = w / 2, hd = d / 2;
+    [[0, 1.35, -hd, w, 2.7, 0.12], [-hw, 1.35, 0, 0.12, 2.7, d], [hw, 1.35, 0, 0.12, 2.7, d]].forEach(([x, y, z, ww, h, dd]) => {
+      const p = mesh(new THREE.BoxGeometry(ww, h, dd), parede, x, y, z);
+      objs.push(p); scene.add(p);
+    });
+    const rodape = mesh(new THREE.BoxGeometry(w, 0.06, 0.08), ROSA, 0, 0.03, -hd + 0.06);
+    objs.push(rodape); scene.add(rodape);
+  }
+
+  function porta(x, z, cor, destino, label) {
+    const p = mesh(new THREE.BoxGeometry(1.4, 2.2, 0.15), cor, x, 1.1, z);
+    p.userData.porta = destino; p.userData.predio = label;
+    objs.push(p); scene.add(p);
+    const placa = mesh(new THREE.BoxGeometry(1.2, 0.35, 0.05), 0xFFFFFF, x, 2.35, z);
+    objs.push(placa); scene.add(placa);
+  }
+
+  function checkPortas() {
+    objs.forEach(o => {
+      if (!o.userData.porta) return;
+      if (Math.abs(jog.x - o.position.x) < 2 && Math.abs(jog.z - o.position.z) < 2) {
+        const z = o.userData.porta;
+        if (z && z !== jogoAtual) { irPara(z); toast(o.userData.predio); }
+      }
+    });
+  }
+
   const ZONAS = {
     cidade: {
-      nome: '🏙️ Cidade',
+      nome: 'Mapa',
       load() {
-        plat(60, 0.3, 60, 0x888888, 0, -0.15, 0);
-        plat(50, 0.25, 50, 0x5cb85c, 0, 0, 0, true);
-        // Ruas
-        plat(4, 0.05, 50, 0x555555, 0, 0.16, 0);
-        plat(50, 0.05, 4, 0x555555, 0, 0.16, 0);
-        predio('PIZZA', 0xFF6B35, -15, -15, 5, 4, 5);
-        predio('LOJA', 0xFF1493, 15, -15, 5, 5, 5);
-        predio('CASA', 0x9B59B6, -15, 15, 5, 3.5, 5);
-        predio('PRAIA', 0x00CED1, 15, 15, 5, 3, 5);
-        predio('SKATE', 0xFFD700, 0, -20, 6, 2.5, 4);
-        predio('PARQUE', 0x2ECC71, 0, 20, 7, 3, 6);
-        predio('FAZENDA', 0x8B4513, -20, 0, 6, 3.5, 5);
-        predio('ESCOLA', 0x3498DB, 20, 0, 7, 4, 6);
-        // Fonte central
-        const fonte = mesh(new THREE.CylinderGeometry(2, 2.5, 0.8, 12), 0xAAAAAA, 0, 0.4, 0);
-        objs.push(fonte); scene.add(fonte);
-        anims.push({ m: fonte, fn: t => { fonte.position.y = 0.4 + Math.sin(t * 2) * 0.05; } });
-        for (let i = 0; i < 15; i++) moeda((Math.random() - .5) * 40, 0.6, (Math.random() - .5) * 40);
-        // NPCs
-        ['Lia', 'Pedro', 'Ana'].forEach((n, i) => {
-          const npc = avatar({ cor: ['#FF1493', '#00CED1', '#FFD700'][i], nome: n, cabelo: 'spiky', chapeu: i === 0 ? 'coroa' : 'nenhum' });
-          npc.position.set(-8 + i * 8, 0, 5);
-          anims.push({ m: npc, fn: t => { npc.rotation.y = Math.sin(t + i) * 0.8; npc.position.y = Math.sin(t * 2 + i) * 0.04; } });
-          objs.push(npc); scene.add(npc);
-        });
-        pontos('🏙️ Explore a cidade! Entre nos prédios!');
+        plat(24, 0.1, 24, CHAO, 0, -0.05, 0);
+        apAngela(22, 22, CHAO, PAREDE);
+        objs.push(mesh(new THREE.BoxGeometry(8, 0.08, 8), ROSA, 0, 0.04, 0));
+        scene.add(objs[objs.length - 1]);
+        porta(-6, -8, 0xFF69B4, 'casa', 'Sala');
+        porta(6, -8, 0xC084FC, 'escola', 'Quarto');
+        porta(-6, 8, 0xFDE047, 'pizza', 'Cozinha');
+        porta(6, 8, 0x67E8F9, 'praia', 'Banheiro');
+        porta(0, -9, 0xFF1493, 'parque', 'Closet');
+        porta(0, 9, 0x86EFAC, 'skate', 'Cidade');
+        for (let i = 0; i < 8; i++) moeda((Math.random() - .5) * 16, 0.5, (Math.random() - .5) * 16);
+        pontos('Mapa do apartamento - va ate uma porta!');
       },
-      update() {
-        objs.forEach(o => {
-          if (!o.userData.predio) return;
-          const dx = jog.x - o.position.x, dz = jog.z - o.position.z;
-          if (Math.abs(dx) < 4 && Math.abs(dz) < 4) {
-            const map = { PIZZA: 'pizza', LOJA: 'cidade', CASA: 'casa', PRAIA: 'praia', SKATE: 'skate', PARQUE: 'parque', FAZENDA: 'fazenda', ESCOLA: 'escola' };
-            const z = map[o.userData.predio];
-            if (z && z !== 'cidade') { irPara(z); toast('→ ' + o.userData.predio); }
-          }
-        });
-        colidirMoedas();
-      }
+      update() { checkPortas(); colidirMoedas(); }
     },
     casa: {
-      nome: '🏠 Minha Casa',
+      nome: 'Sala',
       load() {
-        plat(20, 0.3, 20, 0xDEB887, 0, -0.15, 0);
-        // Paredes da casa
-        const paredeCor = 0xFFF0F5;
-        [[0, 1.5, -6, 12, 3, 0.3], [-6, 1.5, 0, 0.3, 3, 12], [6, 1.5, 0, 0.3, 3, 12]].forEach(([x, y, z, w, h, d]) => {
-          objs.push(mesh(new THREE.BoxGeometry(w, h, d), paredeCor, x, y, z));
-          scene.add(objs[objs.length - 1]);
-        });
-        // Telhado
-        const tel = mesh(new THREE.ConeGeometry(7, 2.5, 4), 0xFF69B4, 0, 4.2, -6);
-        tel.rotation.y = Math.PI / 4; objs.push(tel); scene.add(tel);
-        // Tapete
-        objs.push(mesh(new THREE.BoxGeometry(4, 0.05, 3), 0xC084FC, 0, 0.03, 0));
+        apAngela(18, 16, 0xF5E6D3, 0xFFF0F5);
+        colocarMovelFixo('sofa', -2, 0.4, 1);
+        colocarMovelFixo('tv', 0, 1, -6);
+        colocarMovelFixo('planta', 5, 0.4, 2);
+        colocarMovelFixo('luminaria', -5, 0.6, -1);
+        objs.push(mesh(new THREE.BoxGeometry(2, 0.08, 1), 0xDEB887, 2, 0.45, 0));
         scene.add(objs[objs.length - 1]);
-        // Móveis iniciais
-        colocarMovelFixo('sofa', -2, 0.4, 2);
-        colocarMovelFixo('tv', 0, 1, -5.5);
-        colocarMovelFixo('planta', 4, 0.4, 3);
-        colocarMovelFixo('luminaria', -4, 0.6, -2);
-        for (let i = 0; i < 5; i++) moeda((Math.random() - .5) * 14, 0.5, (Math.random() - .5) * 14);
+        objs.push(mesh(new THREE.BoxGeometry(3, 1.8, 0.08), 0x87CEEB, 0, 1.2, 7.5));
+        scene.add(objs[objs.length - 1]);
+        const pista = mesh(new THREE.CylinderGeometry(1.8, 1.8, 0.06, 20), 0xFF85C0, 2, 0.03, 0, 1);
+        pista.userData.danca = true;
+        objs.push(pista); scene.add(pista);
+        anims.push({ m: pista, fn: t => { pista.material.emissiveIntensity = 0.15 + Math.sin(t * 3) * 0.1; } });
+        for (let i = 0; i < 5; i++) moeda((Math.random() - .5) * 12, 0.5, (Math.random() - .5) * 10);
         estado.moveis = 4;
-        pontos('🏠 Decore! Toque 🛋️ para colocar móveis');
+        pontos('Sala - sofa, TV e pista de danca rosa!');
         document.getElementById('btn-movel')?.classList.remove('oculto');
       },
       update() { colidirMoedas(); }
     },
     escola: {
-      nome: '🏫 Escola',
+      nome: 'Quarto',
       load() {
-        plat(28, 0.3, 28, 0xE8F4FD, 0, -0.15, 0, true);
-        // Prédio principal
-        objs.push(mesh(new THREE.BoxGeometry(12, 5, 8), 0x3498DB, 0, 2.5, -5));
+        apAngela(16, 14, 0xE8DAFF, 0xFDF4FF);
+        const cama = mesh(new THREE.BoxGeometry(3, 0.5, 2.2), 0xFF69B4, -4, 0.25, -3);
+        objs.push(cama); scene.add(cama);
+        plats.push(cama);
+        objs.push(mesh(new THREE.BoxGeometry(3.2, 0.15, 2.4), 0xFFFFFF, -4, 0.55, -3));
         scene.add(objs[objs.length - 1]);
-        objs.push(mesh(new THREE.ConeGeometry(7, 2, 4), 0x2980B9, 0, 6, -5));
+        objs.push(mesh(new THREE.BoxGeometry(0.8, 0.6, 0.5), 0xDEB887, -4, 0.35, -5.5));
         scene.add(objs[objs.length - 1]);
-        // Sala de aula
-        plat(8, 0.2, 6, 0xF5DEB3, -8, 0, 5);
-        for (let i = 0; i < 4; i++) {
-          objs.push(mesh(new THREE.BoxGeometry(1, 0.6, 0.6), 0xDEB887, -10 + i * 2.5, 0.3, 6));
-          scene.add(objs[objs.length - 1]);
-        }
-        objs.push(mesh(new THREE.BoxGeometry(3, 0.1, 1.5), 0x8B4513, -8, 0.55, 3));
+        objs.push(mesh(new THREE.BoxGeometry(2.5, 1.8, 0.08), 0xFFD700, 4, 1.5, -6));
         scene.add(objs[objs.length - 1]);
-        // Quadro
-        objs.push(mesh(new THREE.BoxGeometry(3, 1.5, 0.1), 0xFFFFFF, -8, 2, 8.5));
-        scene.add(objs[objs.length - 1]);
-        // Playground
-        const escorregador = new THREE.Group();
-        escorregador.add(mesh(new THREE.BoxGeometry(1, 2, 0.3), 0xFF69B4, 0, 1, 0));
-        escorregador.add(mesh(new THREE.BoxGeometry(1.5, 0.1, 2), 0xFFD700, 0.5, 0.5, 1));
-        escorregador.position.set(8, 0, 6);
-        objs.push(escorregador); scene.add(escorregador);
-        // NPCs estudantes
-        ['Lucas', 'Julia', 'Theo'].forEach((n, i) => {
-          const npc = avatar({ cor: ['#3498DB', '#FF69B4', '#2ECC71'][i], nome: n, cabelo: ['spiky', 'longo', 'ondas'][i], chapeu: 'nenhum' });
-          npc.position.set(-4 + i * 4, 0, -2);
-          anims.push({ m: npc, fn: t => { npc.rotation.y = Math.sin(t + i) * 0.5; } });
-          objs.push(npc); scene.add(npc);
-        });
-        for (let i = 0; i < 10; i++) moeda((Math.random() - .5) * 22, 0.5, (Math.random() - .5) * 22);
-        pontos('🏫 Explore a escola! Playground e sala de aula');
+        const console = mesh(new THREE.BoxGeometry(1.2, 0.4, 0.6), 0x333333, 4, 0.5, 2);
+        console.userData.danca = true;
+        objs.push(console); scene.add(console);
+        for (let i = 0; i < 6; i++) moeda((Math.random() - .5) * 10, 0.5, (Math.random() - .5) * 10);
+        pontos('Quarto - cama rosa, poster e dancar no videogame!');
       },
       update() {
-        if (jog.z > 7 && jog.x > 5 && jog.y <= 1) { jog.velY = 8; toast('🛝 Escorregou!'); FX.sons.pular(); }
-        colidirMoedas();
-      }
-    },
-    praia: {
-      nome: '🏖️ Praia',
-      load() {
-        plat(30, 0.3, 30, 0xF4D03F, 0, -0.15, 0);
-        const agua = mesh(new THREE.BoxGeometry(30, 0.2, 12), 0x4aadee, 0, -0.05, 15);
-        agua.material.transparent = true; agua.material.opacity = 0.8;
-        objs.push(agua); scene.add(agua);
-        anims.push({ m: agua, fn: t => { agua.material.emissiveIntensity = 0.1 + Math.sin(t) * 0.05; } });
-        // Guarda-sol
-        [[-5, 0, 0], [5, 0, 3], [-3, 0, 5]].forEach(([x, y, z]) => {
-          const gs = new THREE.Group();
-          gs.add(mesh(new THREE.CylinderGeometry( 0.05, 0.05, 2.5, 4), 0x888888, 0, 1.25, 0));
-          gs.add(mesh(new THREE.ConeGeometry(1.5, 0.8, 8), [0xFF1493, 0x00CED1, 0xFFD700][Math.abs(x) % 3], 0, 2.6, 0));
-          gs.position.set(x, y, z); objs.push(gs); scene.add(gs);
-        });
-        for (let i = 0; i < 8; i++) moeda((Math.random() - .5) * 20, 0.4, (Math.random() - .5) * 10);
-        for (let i = 0; i < 5; i++) {
-          const cx = (Math.random() - .5) * 18, cz = (Math.random() - .5) * 8;
-          const concha = mesh(new THREE.SphereGeometry(0.2, 8, 6), 0xFFE4C4, cx, 0.2, cz);
-          concha.scale.set(1.2, 0.6, 1); concha.userData.concha = true;
-          cols.push(concha); scene.add(concha);
-        }
-        pontos('🏖️ Pule na água! Colete conchas 🐚');
-      },
-      update() {
-        if (jog.z > 8 && jog.y <= 0.5) { jog.y = -0.2; toast('🏊 Splash!'); FX.sons.pular(); }
-        cols.forEach(c => {
-          if (c.userData.coletada || !c.userData.concha) return;
-          const dx = jog.x - c.position.x, dz = jog.z - c.position.z;
-          if (Math.sqrt(dx * dx + dz * dz) < 1.2) {
-            c.userData.coletada = true; scene.remove(c);
-            moedas += 12; atualizarMoedas(); FX.sons.moeda(); toast('🐚 Concha! +12');
+        if (jog.x < -2 && jog.z < -1 && jog.y <= 0.6) { jog.velY = 9; toast('Pula na cama!'); FX.sons.pular(); }
+        objs.forEach(o => {
+          if (o.userData.danca && dist(o) < 2.5) {
+            if (!estado._dancaHint) { estado._dancaHint = true; toast('Toque ! para dancar!'); }
           }
         });
         colidirMoedas();
       }
     },
     pizza: {
-      nome: '🍕 Pizzaria',
+      nome: 'Cozinha',
       load() {
-        plat(14, 0.3, 14, 0xFF6B35, 0, -0.15, 0);
-        // Forno
-        const forno = mesh(new THREE.BoxGeometry(2, 1.5, 1), 0x888888, 0, 0.75, -4);
-        objs.push(forno); scene.add(forno);
-        // Mesas
-        [[-3, 0, 2], [3, 0, 2], [0, 0, -1]].forEach(([x, y, z]) => {
-          objs.push(mesh(new THREE.CylinderGeometry(0.8, 0.8, 0.08, 8), 0x8B4513, x, 0.5, z));
+        apAngela(16, 14, 0xFFF5E6, 0xFFFAF0);
+        const geladeira = mesh(new THREE.BoxGeometry(1.2, 2.2, 0.8), 0xE0E0E0, -6, 1.1, -5);
+        geladeira.userData.comida = true;
+        objs.push(geladeira); scene.add(geladeira);
+        objs.push(mesh(new THREE.BoxGeometry(3, 0.9, 0.6), 0xDEB887, 0, 0.45, -5));
+        scene.add(objs[objs.length - 1]);
+        const liquidificador = mesh(new THREE.CylinderGeometry(0.25, 0.3, 0.6, 8), 0xFF69B4, 2, 0.75, -4.5);
+        liquidificador.userData.smoothie = true;
+        objs.push(liquidificador); scene.add(liquidificador);
+        [[-2, 0.5, 2], [2, 0.5, 2]].forEach(([x, y, z]) => {
+          objs.push(mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.06, 8), 0x8B4513, x, y, z));
           scene.add(objs[objs.length - 1]);
-          // Pizza na mesa
-          const pz = mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.05, 12), 0xFFD700, x, 0.6, z);
-          objs.push(pz); scene.add(pz);
-          anims.push({ m: pz, fn: t => { pz.rotation.y = t; } });
+          const fruta = mesh(new THREE.SphereGeometry(0.2, 8, 6), [0xFF6B35, 0xFFD700, 0xFF1493][Math.abs(x) % 3], x, 0.65, z);
+          fruta.userData.fruta = true;
+          cols.push(fruta); scene.add(fruta);
         });
-        for (let i = 0; i < 5; i++) moeda((Math.random() - .5) * 10, 0.5, (Math.random() - .5) * 10);
-        pontos('🍕 Colete pizzas douradas!');
-      },
-      update() {
-        cols.forEach(m => {
-          if (m.userData.coletada || !m.userData.moeda) return;
-          if (dist(m) < 1.5) {
-            m.userData.coletada = true; scene.remove(m);
-            moedas += 15; atualizarMoedas();
-            FX.sons.moeda(); FX.burst(scene, m.position.x, m.position.y, m.position.z, 0xFF6B35);
-            toast('🍕 Pizza! +15 moedas');
-          }
-        });
-      }
-    },
-    skate: {
-      nome: '🛹 Skate Park',
-      load() {
-        plat(25, 0.3, 25, 0x888888, 0, -0.15, 0);
-        // Rampas
-        for (let i = 0; i < 4; i++) {
-          const r = mesh(new THREE.BoxGeometry(4, 0.2, 6), 0xFF1493, -8 + i * 5, 0.5 + i * 0.8, -5);
-          r.rotation.x = -0.3; plats.push(r); objs.push(r); scene.add(r);
-        }
-        // Half-pipe
-        const hp = mesh(new THREE.CylinderGeometry(6, 6, 0.2, 16, 1, false, 0, Math.PI), 0x00CED1, 0, 0.1, 8);
-        hp.rotation.x = Math.PI / 2; hp.rotation.z = Math.PI / 2;
-        plats.push(hp); objs.push(hp); scene.add(hp);
-        // Skate spawn
-        const sk = mesh(new THREE.BoxGeometry(1.2, 0.08, 0.4), 0xFFD700, 0, 0.5, 0, 1);
-        sk.userData.skate = true; objs.push(sk); scene.add(sk);
-        anims.push({ m: sk, fn: t => { sk.rotation.y = t * 2; sk.position.y = 0.5 + Math.sin(t * 3) * 0.1; } });
-        for (let i = 0; i < 10; i++) moeda((Math.random() - .5) * 18, 0.5 + Math.random() * 2, (Math.random() - .5) * 18);
-        document.getElementById('btn-skate')?.classList.remove('oculto');
-        pontos('🛹 Pegue o skate e faça manobras!');
+        for (let i = 0; i < 5; i++) moeda((Math.random() - .5) * 10, 0.5, (Math.random() - .5) * 8);
+        pontos('Cozinha - geladeira, liquidificador e frutas!');
       },
       update() {
         objs.forEach(o => {
-          if (o.userData.skate && dist(o) < 2 && !noSkate) {
-            noSkate = true; toast('🛹 Skate equipado! Mais rápido!');
-            FX.sons.conquista();
+          if (o.userData.comida && dist(o) < 2.5) { moedas += 10; atualizarMoedas(); FX.sons.moeda(); toast('Lanche! +10'); o.userData.comida = false; setTimeout(() => { o.userData.comida = true; }, 4000); }
+          if (o.userData.smoothie && dist(o) < 2) { FX.sons.conquista(); toast('Smoothie pronto!'); FX.burst(scene, o.position.x, o.position.y, o.position.z, 0xFF69B4); }
+        });
+        cols.forEach(c => {
+          if (c.userData.coletada || !c.userData.fruta) return;
+          if (dist(c) < 1.2) { c.userData.coletada = true; scene.remove(c); moedas += 8; atualizarMoedas(); FX.sons.moeda(); toast('Fruta! +8'); }
+        });
+        colidirMoedas();
+      }
+    },
+    praia: {
+      nome: 'Banheiro',
+      load() {
+        apAngela(14, 12, 0xE0F7FA, 0xF0FFFF);
+        const banheira = mesh(new THREE.BoxGeometry(2.2, 0.7, 1.2), 0xFFFFFF, -3, 0.35, -2);
+        banheira.userData.banho = true;
+        objs.push(banheira); scene.add(banheira);
+        const agua = mesh(new THREE.BoxGeometry(1.8, 0.4, 0.9), 0x67E8F9, -3, 0.55, -2);
+        agua.material.transparent = true; agua.material.opacity = 0.7;
+        objs.push(agua); scene.add(agua);
+        anims.push({ m: agua, fn: t => { agua.material.emissiveIntensity = 0.1 + Math.sin(t * 2) * 0.05; } });
+        const vaso = mesh(new THREE.BoxGeometry(0.6, 0.5, 0.6), 0xFFFFFF, 4, 0.25, -4);
+        vaso.userData.vaso = true;
+        objs.push(vaso); scene.add(vaso);
+        objs.push(mesh(new THREE.BoxGeometry(1, 0.8, 0.4), 0xE0E0E0, 4, 0.8, 2));
+        scene.add(objs[objs.length - 1]);
+        const espelho = mesh(new THREE.BoxGeometry(1.5, 1.8, 0.06), 0xADD8E6, 0, 1.4, 5.5);
+        espelho.userData.espelho = true;
+        objs.push(espelho); scene.add(espelho);
+        const pente = mesh(new THREE.BoxGeometry(0.5, 0.08, 0.15), 0xFF69B4, -4, 0.9, 5);
+        pente.userData.maquiagem = true;
+        objs.push(pente); scene.add(pente);
+        for (let i = 0; i < 4; i++) moeda((Math.random() - .5) * 8, 0.5, (Math.random() - .5) * 8);
+        pontos('Banheiro - va ao espelho e toque ! para maquiagem!');
+      },
+      update() {
+        objs.forEach(o => {
+          if (o.userData.banho && dist(o) < 2.5) { toast('Banho de espuma!'); FX.burst(scene, o.position.x, 1, o.position.z, 0x67E8F9); FX.sons.pular(); }
+        });
+        colidirMoedas();
+      }
+    },
+    parque: {
+      nome: 'Closet',
+      load() {
+        apAngela(16, 14, 0xFCE7F3, 0xFFF1F2);
+        objs.push(mesh(new THREE.BoxGeometry(4, 2.5, 0.6), 0xDEB887, -4, 1.25, -5));
+        scene.add(objs[objs.length - 1]);
+        objs.push(mesh(new THREE.BoxGeometry(4, 2.5, 0.6), 0xDEB887, 4, 1.25, -5));
+        scene.add(objs[objs.length - 1]);
+        const espelhoGr = mesh(new THREE.BoxGeometry(2, 2.5, 0.08), 0xB0E0E6, 0, 1.5, 5);
+        espelhoGr.userData.closet = true;
+        espelhoGr.userData.maquiagem = true;
+        objs.push(espelhoGr); scene.add(espelhoGr);
+        objs.push(mesh(new THREE.BoxGeometry(1.5, 0.8, 0.8), 0xFF69B4, 0, 0.4, 0));
+        scene.add(objs[objs.length - 1]);
+        [[-3, 0.3, 2], [0, 0.3, 2], [3, 0.3, 2]].forEach(([x, y, z], i) => {
+          const sap = mesh(new THREE.BoxGeometry(0.3, 0.2, 0.5), [0xFF1493, 0xFFFFFF, 0xFFD700][i], x, y, z);
+          objs.push(sap); scene.add(sap);
+        });
+        for (let i = 0; i < 6; i++) moeda((Math.random() - .5) * 10, 0.5, (Math.random() - .5) * 10);
+        pontos('Closet - guarda-roupa e maquiagem! Toque R ou !');
+      },
+      update() {
+        colidirMoedas();
+      }
+    },
+    skate: {
+      nome: 'Cidade',
+      load() {
+        plat(30, 0.15, 30, 0xCCCCCC, 0, -0.08, 0);
+        plat(28, 0.1, 28, 0xE8E8E8, 0, 0, 0);
+        predio('LOJA', 0xFF69B4, -8, -8, 4, 5, 4);
+        predio('PARIS', 0xC084FC, 8, -8, 4, 6, 4);
+        predio('PRAIA', 0x67E8F9, -8, 8, 4, 4, 4);
+        predio('PARQUE', 0x86EFAC, 8, 8, 5, 4, 4);
+        objs.push(mesh(new THREE.BoxGeometry(0.8, 5, 0.8), 0x888888, 0, 2.5, -10));
+        scene.add(objs[objs.length - 1]);
+        objs.push(mesh(new THREE.ConeGeometry(1.2, 1.5, 4), 0xFF1493, 0, 6, -10));
+        scene.add(objs[objs.length - 1]);
+        for (let i = 0; i < 10; i++) moeda((Math.random() - .5) * 22, 0.5, (Math.random() - .5) * 22);
+        pontos('Cidade - visite Paris, loja e parque!');
+      },
+      update() {
+        objs.forEach(o => {
+          if (!o.userData.predio) return;
+          if (Math.abs(jog.x - o.position.x) < 4 && Math.abs(jog.z - o.position.z) < 4) {
+            const map = { LOJA: 'cidade', PARIS: 'fazenda', PRAIA: 'pesca', PARQUE: 'parque' };
+            const z = map[o.userData.predio];
+            if (z) { irPara(z); toast('Viajando: ' + o.userData.predio); }
           }
         });
         colidirMoedas();
@@ -621,6 +635,8 @@
     if (!ZONAS[id]) return;
     limpar(); jogoAtual = id; ZONAS[id].load();
     jog.x = 0; jog.y = 2; jog.z = 0;
+    const nm = document.getElementById('nome-mundo');
+    if (nm && ZONAS[id]) nm.textContent = ZONAS[id].nome;
     document.querySelectorAll('.nav-btn').forEach(b => b.classList.toggle('ativo', b.dataset.jogo === id));
     document.getElementById('btn-movel')?.classList.toggle('oculto', id !== 'casa');
     document.getElementById('btn-skate')?.classList.toggle('oculto', id !== 'skate');
@@ -630,36 +646,166 @@
 
   function pontos(t) { const el = document.getElementById('hud-pontos'); if (el) el.textContent = t; }
   function atualizarMoedas() {
-    document.getElementById('hud-moedas').textContent = '🪙 ' + moedas;
+    document.getElementById('hud-moedas').textContent = '$ ' + moedas;
     const lm = document.getElementById('loja-moedas'); if (lm) lm.textContent = moedas;
     salvarProgresso();
   }
 
+  // ── Minigames Angela ──
+  const SETAS = { cima: '^', baixo: 'v', esq: '<', dir: '>' };
+  let dancaAtiva = false, dancaSeq = [], dancaIdx = 0, dancaPontos = 0;
+
+  function pertoDe(tipo) {
+    return objs.some(o => o.userData[tipo] && dist(o) < 2.8);
+  }
+
+  function initMaquiagem() {
+    const painel = document.getElementById('maquiagem');
+    if (!painel) return;
+    function pick(grupo, attr, campo) {
+      painel.querySelectorAll(grupo + ' .cor').forEach(b => {
+        b.onclick = () => {
+          painel.querySelectorAll(grupo + ' .cor').forEach(x => x.classList.remove('ativa'));
+          b.classList.add('ativa');
+          sessao[campo] = b.dataset[attr];
+        };
+      });
+    }
+    pick('#cores-batom', 'batom', 'batom');
+    pick('#cores-blush', 'blush', 'blush');
+    pick('#cores-sombra', 'sombra', 'sombra');
+    document.getElementById('btn-aplicar-maquiagem')?.addEventListener('click', () => {
+      rebuildPlayer();
+      try { localStorage.setItem('mk_avatar', JSON.stringify(sessao)); } catch {}
+      FX.sons.conquista();
+      FX.confete?.(scene, jog.x, jog.y + 1, jog.z);
+      toast('Maquiagem aplicada!');
+      fecharMaquiagem();
+    });
+  }
+
+  window.abrirMaquiagem = function () {
+    const painel = document.getElementById('maquiagem');
+    if (!painel) return;
+    ['batom', 'blush', 'sombra'].forEach(c => {
+      painel.querySelectorAll('[data-' + c + ']').forEach(b => {
+        b.classList.toggle('ativa', b.dataset[c] === (sessao[c] || 'rosa'));
+      });
+    });
+    painel.classList.remove('oculto');
+  };
+  window.fecharMaquiagem = () => document.getElementById('maquiagem')?.classList.add('oculto');
+
+  function mostrarSetaDanca() {
+    const alvo = document.getElementById('danca-alvo');
+    const barra = document.getElementById('danca-barra');
+    const msg = document.getElementById('danca-msg');
+    if (!dancaAtiva) return;
+    if (dancaIdx >= dancaSeq.length) { finalizarDanca(); return; }
+    const s = dancaSeq[dancaIdx];
+    if (alvo) alvo.textContent = SETAS[s];
+    if (barra) barra.style.width = ((dancaIdx / dancaSeq.length) * 100) + '%';
+    if (msg) msg.textContent = 'Toque: ' + SETAS[s] + '  (' + (dancaIdx + 1) + '/' + dancaSeq.length + ')';
+    document.getElementById('danca-pontos').textContent = dancaPontos;
+  }
+
+  function toqueSetaDanca(dir) {
+    if (!dancaAtiva) return;
+    const btns = document.querySelectorAll('.danca-btn');
+    if (dir === dancaSeq[dancaIdx]) {
+      dancaPontos += 10;
+      dancaIdx++;
+      FX.sons.moeda();
+      emoteAtual = 'dancar'; emoteTimer = 0.4;
+      btns.forEach(b => b.classList.remove('erro', 'acerto'));
+      document.querySelector('.danca-btn[data-seta="' + dir + '"]')?.classList.add('acerto');
+      mostrarSetaDanca();
+    } else {
+      FX.sons.pular();
+      btns.forEach(b => b.classList.remove('acerto'));
+      document.querySelector('.danca-btn[data-seta="' + dir + '"]')?.classList.add('erro');
+      toast('Errou! Tente de novo');
+      dancaIdx = 0;
+      dancaPontos = Math.max(0, dancaPontos - 5);
+      mostrarSetaDanca();
+    }
+  }
+
+  function finalizarDanca() {
+    dancaAtiva = false;
+    const ganho = Math.floor(dancaPontos / 5);
+    moedas += ganho;
+    atualizarMoedas();
+    FX.sons.conquista();
+    if (ganho > 0) FX.confete?.(scene, jog.x, jog.y + 1, jog.z);
+    toast('Danca! +' + ganho + ' moedas (' + dancaPontos + ' pts)');
+    document.getElementById('danca-game')?.classList.add('oculto');
+    emoteAtual = 'dancar'; emoteTimer = 2;
+  }
+
+  function initDanca() {
+    document.querySelectorAll('.danca-btn').forEach(b => {
+      b.addEventListener('click', () => toqueSetaDanca(b.dataset.seta));
+    });
+  }
+
+  window.abrirDanca = function () {
+    dancaAtiva = true;
+    dancaPontos = 0;
+    dancaIdx = 0;
+    dancaSeq = [];
+    const ops = ['cima', 'baixo', 'esq', 'dir'];
+    for (let i = 0; i < 8; i++) dancaSeq.push(ops[Math.floor(Math.random() * ops.length)]);
+    document.getElementById('danca-game')?.classList.remove('oculto');
+    document.getElementById('danca-barra').style.width = '0%';
+    mostrarSetaDanca();
+  };
+  window.fecharDanca = () => {
+    dancaAtiva = false;
+    document.getElementById('danca-game')?.classList.add('oculto');
+  };
+
   // ── Emotes ──
   function emote(tipo) {
+    if (tipo === 'dancar') { abrirDanca(); return; }
     emoteAtual = tipo; emoteTimer = 2.5;
     FX.sons.emote();
     socket?.emit('evento', { tipo: 'emote', emote: tipo });
-    const msgs = { acenar: '👋 Oi!', dancar: '💃 Dançando!', pular: '🦘 Pula!', comemorar: '🎉 Uhuu!', rir: '😂 Haha!' };
+    const msgs = { acenar: 'Oi!', dancar: 'Dancando!', pular: 'Pula!', comemorar: 'Uhuu!', rir: 'Haha!' };
     toast(msgs[tipo] || tipo);
   }
 
   function acao() {
-    if (jogoAtual === 'casa') colocarMovel();
-    else if (jogoAtual === 'pesca') {
+    if (jogoAtual === 'casa') {
+      if (pertoDe('danca')) abrirDanca();
+      else colocarMovel();
+    } else if (jogoAtual === 'parque') {
+      if (pertoDe('maquiagem')) abrirMaquiagem();
+      else { window.abrirGuardaRoupa?.(); toast('Guarda-roupa aberto!'); }
+    } else if (jogoAtual === 'praia') {
+      if (pertoDe('espelho') || pertoDe('maquiagem')) abrirMaquiagem();
+      else toast('Va ate o espelho!');
+    } else if (jogoAtual === 'escola') {
+      if (pertoDe('danca')) abrirDanca();
+      else toast('Va ao videogame para dancar!');
+    } else if (jogoAtual === 'pizza') {
+      objs.forEach(o => {
+        if (o.userData.smoothie && dist(o) < 3) { moedas += 15; atualizarMoedas(); FX.sons.conquista(); toast('Smoothie! +15'); }
+      });
+    } else if (jogoAtual === 'pesca') {
       cols.forEach(p => {
         if (!p.userData.peixe || !p.userData.vivo) return;
-        if (dist(p) < 3) { p.userData.vivo = false; scene.remove(p); moedas += 20; atualizarMoedas(); FX.sons.moeda(); toast('🐟 Peixe!'); }
+        if (dist(p) < 3) { p.userData.vivo = false; scene.remove(p); moedas += 20; atualizarMoedas(); FX.sons.moeda(); toast('Peixe!'); }
       });
     } else if (jogoAtual === 'fazenda') {
       objs.forEach(o => {
         if (o.userData.racao && dist(o) < 3 && !estado.alimentou) {
           estado.alimentou = true; moedas += 25; atualizarMoedas();
-          FX.sons.conquista(); toast('🌽 Galinhas alimentadas! +25');
+          FX.sons.conquista(); toast('Galinhas alimentadas! +25');
           setTimeout(() => { estado.alimentou = false; }, 5000);
         }
       });
-      toast('🐔 Procure ovos no chão!');
+      toast('Procure ovos no chao!');
     } else emote('acenar');
   }
 
@@ -683,7 +829,7 @@
       const div = document.createElement('div');
       const comp = comprados.has(item.id);
       div.className = 'loja-item' + (comp ? ' comprado' : '');
-      div.innerHTML = `<span>${item.nome}</span><span>🪙 ${item.preco}</span>`;
+      div.innerHTML = `<span>${item.nome}</span><span>$ ${item.preco}</span>`;
       const btn = document.createElement('button');
       if (comp) { btn.textContent = 'Equipar'; btn.className = 'equipar'; btn.onclick = () => equipar(item); }
       else { btn.textContent = 'Comprar'; btn.disabled = moedas < item.preco; btn.onclick = () => comprar(item); }
@@ -708,7 +854,7 @@
       div.appendChild(btn);
       itens.appendChild(div);
     });
-    if (!itens.children.length) itens.innerHTML = '<p style="padding:12px;color:#888">Compre itens na loja 🛍️</p>';
+    if (!itens.children.length) itens.innerHTML = '<p style="padding:12px;color:#888">Compre itens na loja</p>';
     el.classList.remove('oculto');
   };
   window.fecharGuardaRoupa = () => document.getElementById('guarda-roupa').classList.add('oculto');
@@ -721,15 +867,78 @@
     else if (item.tipo === 'pet') sessao.pet = item.val || item.id;
     else if (item.tipo === 'skate') noSkate = true;
     rebuildPlayer();
-    FX.sons.conquista(); toast('✨ Equipado: ' + item.nome);
+    FX.sons.conquista(); toast('Equipado: ' + item.nome);
   }
 
   function comprar(item) {
     if (moedas < item.preco || comprados.has(item.id)) return;
     moedas -= item.preco; comprados.add(item.id);
     equipar(item);
-    FX.sons.conquista(); toast('🛍️ Comprou: ' + item.nome);
+    FX.sons.conquista(); toast('Comprou: ' + item.nome);
     abrirLoja();
+  }
+
+  function irParaAlvo(x, z) {
+    alvoMov = { x, z };
+    touch.x = touch.z = 0;
+    if (!localStorage.getItem('mk_primeiro_clique')) {
+      localStorage.setItem('mk_primeiro_clique', '1');
+      toast('Boneco indo ate la!');
+    }
+    if (!marcadorAlvo) {
+      marcadorAlvo = mesh(new THREE.RingGeometry(0.25, 0.55, 20), 0xFF69B4, x, 0.06, z, 1);
+      marcadorAlvo.rotation.x = -Math.PI / 2;
+      anims.push({ m: marcadorAlvo, fn: t => { marcadorAlvo.material.emissiveIntensity = 0.3 + Math.sin(t * 6) * 0.2; } });
+      scene.add(marcadorAlvo);
+    }
+    marcadorAlvo.position.set(x, 0.06, z);
+    marcadorAlvo.visible = true;
+  }
+
+  function initClickMove() {
+    const cv = renderer.domElement;
+    function apontar(clientX, clientY) {
+      const rect = cv.getBoundingClientRect();
+      const cx = ((clientX - rect.left) / rect.width) * 2 - 1;
+      const cy = -((clientY - rect.top) / rect.height) * 2 + 1;
+      raycaster.setFromCamera({ x: cx, y: cy }, camera);
+      if (raycaster.ray.intersectPlane(planoChao, pontoRay)) {
+        irParaAlvo(pontoRay.x, pontoRay.z);
+      }
+    }
+    cv.addEventListener('click', e => {
+      if (e.target !== cv) return;
+      apontar(e.clientX, e.clientY);
+    });
+    cv.addEventListener('touchend', e => {
+      if (e.target !== cv || joyId !== null) return;
+      const t = e.changedTouches[0];
+      if (!t) return;
+      if (t.clientX < 160 && t.clientY > innerHeight - 220) return;
+      if (t.clientX > innerWidth - 110 && t.clientY > innerHeight - 280) return;
+      apontar(t.clientX, t.clientY);
+    }, { passive: true });
+    cv.style.cursor = 'crosshair';
+  }
+
+  function initTutorial() {
+    const tut = document.getElementById('tutorial-controles');
+    const btn = document.getElementById('btn-fechar-tutorial');
+    const ajuda = document.getElementById('btn-ajuda');
+    if (!tut) return;
+    const fechar = () => {
+      tut.classList.add('oculto');
+      document.body.classList.add('tutorial-fechado');
+      localStorage.setItem('mk_tutorial', '1');
+    };
+    if (localStorage.getItem('mk_tutorial')) {
+      tut.classList.add('oculto');
+      document.body.classList.add('tutorial-fechado');
+    }
+    btn?.addEventListener('click', fechar);
+    ajuda?.addEventListener('click', () => tut.classList.remove('oculto'));
+    window.fecharTutorial = fechar;
+    window.mostrarTutorial = () => tut.classList.remove('oculto');
   }
 
   window.pegarBonus = function () {
@@ -747,7 +956,7 @@
     const area = document.getElementById('joystick-area'), fundo = document.getElementById('joystick-fundo'), bola = document.getElementById('joystick-bolinha');
     if (!area) return;
     const reset = () => { joyId = null; touch.x = touch.z = 0; bola.style.transform = 'translate(-50%,-50%)'; };
-    area.addEventListener('touchstart', e => { e.preventDefault(); if (joyId !== null) return; joyId = e.changedTouches[0].identifier; moveJoy(e.changedTouches[0], fundo, bola); }, { passive: false });
+    area.addEventListener('touchstart', e => { e.preventDefault(); document.body.classList.add('tutorial-fechado'); alvoMov = null; if (marcadorAlvo) marcadorAlvo.visible = false; if (joyId !== null) return; joyId = e.changedTouches[0].identifier; moveJoy(e.changedTouches[0], fundo, bola); }, { passive: false });
     area.addEventListener('touchmove', e => { e.preventDefault(); for (const t of e.changedTouches) if (t.identifier === joyId) { moveJoy(t, fundo, bola); break; } }, { passive: false });
     area.addEventListener('touchend', e => { for (const t of e.changedTouches) if (t.identifier === joyId) reset(); });
     document.getElementById('btn-pular')?.addEventListener('touchstart', e => { e.preventDefault(); touch.pular = true; }, { passive: false });
@@ -768,7 +977,7 @@
       teclas[e.code] = true;
       if (e.code === 'KeyE') acao();
       if (['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5', 'Digit6', 'Digit7'].includes(e.code)) {
-        const zonas = ['cidade', 'casa', 'praia', 'pizza', 'skate', 'pesca', 'parque'];
+        const zonas = ['casa', 'escola', 'pizza', 'praia', 'parque', 'cidade', 'skate'];
         irPara(zonas[parseInt(e.code.replace('Digit', '')) - 1] || 'cidade');
       }
     });
@@ -812,10 +1021,25 @@
       if (teclas.KeyD || teclas.ArrowRight) dx = 1;
     }
     if (dx || dz) {
+      alvoMov = null;
+      if (marcadorAlvo) marcadorAlvo.visible = false;
       const l = Math.sqrt(dx * dx + dz * dz);
       if (l > 1) { dx /= l; dz /= l; }
       jog.x += dx * vel * dt; jog.z += dz * vel * dt; jog.rot = Math.atan2(dx, dz);
       andando = true;
+    } else if (alvoMov) {
+      const ax = alvoMov.x - jog.x, az = alvoMov.z - jog.z;
+      const dist = Math.sqrt(ax * ax + az * az);
+      if (dist < 0.7) {
+        alvoMov = null;
+        if (marcadorAlvo) marcadorAlvo.visible = false;
+        andando = false;
+      } else {
+        jog.x += (ax / dist) * vel * dt;
+        jog.z += (az / dist) * vel * dt;
+        jog.rot = Math.atan2(ax / dist, az / dist);
+        andando = true;
+      }
     } else andando = false;
     if ((teclas.Space || touch.pular) && jog.chao) { jog.velY = 11; jog.chao = false; FX.sons.pular(); }
     jog.velY -= 25 * dt; jog.y += jog.velY * dt;
@@ -881,21 +1105,22 @@
     atualizarMoedas();
     document.getElementById('btn-guarda-roupa')?.addEventListener('click', abrirGuardaRoupa);
 
-    initTouch(); initTeclado();
+    initTouch(); initTeclado(); initClickMove(); initTutorial(); initMaquiagem(); initDanca();
     document.querySelectorAll('.nav-btn').forEach(b => b.onclick = () => irPara(b.dataset.jogo));
     document.querySelectorAll('.btn-emote').forEach(b => b.onclick = () => emote(b.dataset.emote));
 
     const srv = window.getServerUrl();
     socket = srv ? io(srv, { transports: ['websocket', 'polling'] }) : io();
     socket.on('connect', () => { meuId = socket.id; socket.emit('entrar', { code: s.code, nome: s.nome, ...optsAvatar(), pet: s.pet }); });
-    socket.on('estado', st => { st.jogadores.forEach(j => { if (j.id !== meuId) addOutro(j); }); document.getElementById('badge-online').textContent = '👥 ' + st.jogadores.length; initVoz(socket, meuId); });
-    socket.on('entrou', j => { addOutro(j); toast(j.nome + ' chegou! 🎉'); });
+    socket.on('estado', st => { st.jogadores.forEach(j => { if (j.id !== meuId) addOutro(j); }); document.getElementById('badge-online').textContent = st.jogadores.length + ' online'; initVoz(socket, meuId); });
+    socket.on('entrou', j => { addOutro(j); toast(j.nome + ' chegou!'); });
     socket.on('saiu', ({ id }) => { if (outros[id]) { scene.remove(outros[id].mesh); delete outros[id]; } });
     socket.on('moveu', d => { if (outros[d.id]) Object.assign(outros[d.id], { tx: d.x, ty: d.y, tz: d.z, tr: d.rot }); });
     socket.on('evento', ev => { if (ev.tipo === 'emote') toast('Alguém está se divertindo! 🎉'); });
     socket.on('erro', ({ msg }) => alert(msg));
 
-    irPara('cidade'); loop();
+    irPara('casa'); loop();
+    toast('Apartamento Angela v2 - toque no chao para andar!');
 
     // Bônus diário
     const hoje = new Date().toDateString();
