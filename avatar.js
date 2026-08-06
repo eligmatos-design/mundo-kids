@@ -98,14 +98,26 @@
     }
   }
 
+  // Cria uma mancha de maquiagem achatada e semitransparente, rente ao rosto —
+  // em vez de uma bola solida grudada por cima, que ficava parecendo um brinco/adesivo.
+  function manchaMaquiagem(cor, x, y, z, raio, achatamento, opacidade) {
+    const m = new THREE.Mesh(
+      new THREE.SphereGeometry(raio, 10, 8),
+      new THREE.MeshStandardMaterial({ color: cor, roughness: 0.95, metalness: 0, transparent: true, opacity: opacidade })
+    );
+    m.position.set(x, y, z);
+    m.scale.set(1, 1, achatamento);
+    return m;
+  }
+
   function addMaquiagem(g, batom, blush, sombra) {
     const corBlush = CORES_MAQUIAGEM.blush[blush] || CORES_MAQUIAGEM.blush.rosa;
     const corSombra = CORES_MAQUIAGEM.sombra[sombra] || CORES_MAQUIAGEM.sombra.roxo;
-    [[-0.32, 1.14, 0.41], [0.32, 1.14, 0.41]].forEach(([x, y, z]) => {
-      g.add(mesh(new THREE.SphereGeometry(0.11, 8, 6), corBlush, x, y, z));
+    [[-0.3, 1.13, 0.43], [0.3, 1.13, 0.43]].forEach(([x, y, z]) => {
+      g.add(manchaMaquiagem(corBlush, x, y, z, 0.1, 0.3, 0.5));
     });
-    [[-0.17, 1.38, 0.48], [0.17, 1.38, 0.48]].forEach(([x, y, z]) => {
-      g.add(mesh(new THREE.SphereGeometry(0.06, 6, 4), corSombra, x, y - 0.04, z - 0.02));
+    [[-0.17, 1.34, 0.46], [0.17, 1.34, 0.46]].forEach(([x, y, z]) => {
+      g.add(manchaMaquiagem(corSombra, x, y - 0.04, z - 0.02, 0.06, 0.35, 0.65));
     });
   }
 
@@ -489,7 +501,7 @@
     }
   }
 
-  let previewScene, previewCam, previewRen, previewMesh, previewPet, previewAnim;
+  let previewScene, previewCam, previewRen, previewMesh, previewPet, previewPetTipo, previewAnim;
   let previewRot = 0, previewAuto = true, previewDrag = false, previewLastX = 0;
 
   function iniciarPreview(canvas, opts) {
@@ -545,13 +557,21 @@
   function atualizarPreview(opts) {
     if (!previewScene) return;
     if (previewMesh) previewScene.remove(previewMesh);
-    if (previewPet) previewScene.remove(previewPet);
     previewMesh = criar({ ...opts, nome: '' });
     previewScene.add(previewMesh);
-    if (opts.pet) {
+    // So recria o pet quando o TIPO dele muda de verdade — antes, qualquer troca de
+    // roupa/cabelo/cor recriava o pet inteiro, o que fazia a bolinha de "carregando"
+    // (placeholder) do modelo 3D piscar/reaparecer a cada clique no criador de avatar.
+    if (opts.pet && opts.pet !== previewPetTipo) {
+      if (previewPet) previewScene.remove(previewPet);
       previewPet = criarPet(opts.pet);
+      previewPetTipo = opts.pet;
       previewPet.position.set(-1.2, 0, 0.5);
       previewScene.add(previewPet);
+    } else if (!opts.pet && previewPet) {
+      previewScene.remove(previewPet);
+      previewPet = null;
+      previewPetTipo = null;
     }
   }
 
