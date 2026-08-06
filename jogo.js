@@ -95,6 +95,21 @@
   }
   const comprados = new Set(JSON.parse(localStorage.getItem('mk_comprados') || '[]'));
   moedas = parseInt(localStorage.getItem('mk_moedas') || '50', 10);
+
+  // Identificador anônimo do dispositivo — não é dado pessoal, é só uma string
+  // aleatória gerada uma vez e guardada localmente, usada para o servidor saber
+  // "este é o mesmo jogador de antes" e devolver o progresso salvo (moedas, itens,
+  // aparência) quando o banco de dados estiver configurado. Sem cadastro, sem login.
+  function obterDeviceId() {
+    let id = localStorage.getItem('mk_device_id');
+    if (!id) {
+      id = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : ('dev-' + Date.now() + '-' + Math.random().toString(36).slice(2));
+      localStorage.setItem('mk_device_id', id);
+    }
+    return id;
+  }
+  const deviceId = obterDeviceId();
+
   const jog = { x: 0, y: 1, z: 0, rot: 0, velY: 0, chao: true, envio: 0 };
   const touch = { x: 0, z: 0, pular: false };
   let joyId = null, RAIO = 45;
@@ -298,10 +313,25 @@
     salvarProgresso();
   }
 
+  let _timerSalvarServidor = null;
   function salvarProgresso() {
     localStorage.setItem('mk_moedas', moedas);
     localStorage.setItem('mk_comprados', JSON.stringify([...comprados]));
     localStorage.setItem('mk_avatar', JSON.stringify(sessao));
+    agendarSalvarProgressoServidor();
+  }
+
+  // Guarda o progresso também no servidor (só tem efeito de verdade quando o
+  // banco de dados está configurado — veja server/db.js). Usa um pequeno atraso
+  // pra não mandar uma mensagem a cada moeda coletada.
+  function agendarSalvarProgressoServidor() {
+    if (!socket || !socket.connected) return;
+    clearTimeout(_timerSalvarServidor);
+    _timerSalvarServidor = setTimeout(enviarProgressoServidorAgora, 2000);
+  }
+  function enviarProgressoServidorAgora() {
+    if (!socket || !socket.connected) return;
+    socket.emit('salvar-progresso', { deviceId, moedas, comprados: [...comprados], avatar: sessao });
   }
 
   function limpar() {
@@ -882,6 +912,22 @@
     toast(m.nome + ' colocado!');
     pontos('🛋️ Móveis: ' + estado.moveis + '/20');
     movelAtual = MOVEL_CATALOG[(estado.moveis || 0) % MOVEL_CATALOG.length].id;
+    // Guarda no servidor: sobrevive a reload e aparece em tempo real pra quem
+    // mais estiver na mesma sala (antes isso sumia ao trocar de zona).
+    socket?.emit('construir', { jogo: jogoAtual, item: { tipo: 'movel', modelo: m.id, x, y: 0, z } });
+  }
+
+  /** Desenha um cubo de construção (usado tanto ao colocar um bloco novo quanto
+   * ao "replayar" blocos já salvos vindos do servidor). Não mexe em estado/rede. */
+  function desenharBloco(b, x, y, z) {
+    const cubo = mesh(new THREE.BoxGeometry(1, 1, 1), b.cor || 0xffffff, x, y, z);
+    if (b.tex === 'tijolo') texturizar(cubo, obterTexturaTijolo(), 1, 1);
+    else if (b.tex === 'madeira') texturizar(cubo, obterTexturaMadeira(), 1, 1);
+    else if (b.tex === 'grama') texturizar(cubo, obterTexturaGrama(), 1, 1);
+    if (b.vidro) { cubo.material.transparent = true; cubo.material.opacity = 0.55; cubo.material.roughness = 0.1; cubo.material.metalness = 0.2; }
+    cubo.userData.blocoCidade = true; cubo.userData.plat = true;
+    objs.push(cubo); plats.push(cubo); scene.add(cubo);
+    return cubo;
   }
 
   /** Coloca um bloco de construção na Cidade, na frente da crianca. Toques repetidos no
@@ -897,18 +943,36 @@
     const nivel = estado.blocoAlturas[chave] || 0;
     if (nivel >= 8) { toast('Essa pilha ja esta bem alta!'); return; }
     const y = nivel + 0.5;
-    const cubo = mesh(new THREE.BoxGeometry(1, 1, 1), b.cor || 0xffffff, x, y, z);
-    if (b.tex === 'tijolo') texturizar(cubo, obterTexturaTijolo(), 1, 1);
-    else if (b.tex === 'madeira') texturizar(cubo, obterTexturaMadeira(), 1, 1);
-    else if (b.tex === 'grama') texturizar(cubo, obterTexturaGrama(), 1, 1);
-    if (b.vidro) { cubo.material.transparent = true; cubo.material.opacity = 0.55; cubo.material.roughness = 0.1; cubo.material.metalness = 0.2; }
-    cubo.userData.blocoCidade = true; cubo.userData.plat = true;
-    objs.push(cubo); plats.push(cubo); scene.add(cubo);
+    desenharBloco(b, x, y, z);
     estado.blocoAlturas[chave] = nivel + 1;
     estado.blocos = (estado.blocos || 0) + 1;
     FX.sons.moeda();
     toast(b.nome + ' colocado! (' + estado.blocos + '/' + BLOCO_LIMITE + ')');
     blocoIdx++;
+    socket?.emit('construir', { jogo: jogoAtual, item: { tipo: 'bloco', modelo: b.id, x, y, z, nivel: estado.blocoAlturas[chave] } });
+  }
+
+  /** Recria um bloco já salvo (vindo do servidor) sem emitir de volta pra rede
+   * nem tocar som/toast — usado ao entrar numa sala que já tinha construções. */
+  function restaurarBloco(item) {
+    const b = BLOCO_CATALOG.find(v => v.id === item.modelo) || BLOCO_CATALOG[0];
+    desenharBloco(b, item.x, item.y, item.z);
+    const chave = item.x + ',' + item.z;
+    estado.blocoAlturas = estado.blocoAlturas || {};
+    estado.blocoAlturas[chave] = Math.max(estado.blocoAlturas[chave] || 0, item.nivel || ((estado.blocoAlturas[chave] || 0) + 1));
+    estado.blocos = (estado.blocos || 0) + 1;
+  }
+
+  /** Aplica uma construção que veio do servidor (histórico da sala ou em tempo
+   * real de outro jogador) — móvel extra na Casa ou bloco na Cidade. */
+  function aplicarConstrucaoRemota(item) {
+    if (!item) return;
+    if (item.tipo === 'movel') {
+      colocarMovelFixo(item.modelo, item.x, item.y, item.z);
+      estado.moveis = (estado.moveis || 0) + 1;
+    } else if (item.tipo === 'bloco') {
+      restaurarBloco(item);
+    }
   }
 
   function irPara(id) {
@@ -1417,13 +1481,41 @@
 
     const srv = window.getServerUrl();
     socket = srv ? io(srv, { transports: ['websocket', 'polling'] }) : io();
-    socket.on('connect', () => { meuId = socket.id; socket.emit('entrar', { code: s.code, nome: s.nome, ...optsAvatar(), pet: s.pet }); });
-    socket.on('estado', st => { st.jogadores.forEach(j => { if (j.id !== meuId) addOutro(j); }); document.getElementById('badge-online').textContent = st.jogadores.length + ' online'; initVoz(socket, meuId); });
+    socket.on('connect', () => { meuId = socket.id; socket.emit('entrar', { code: s.code, nome: s.nome, ...optsAvatar(), pet: s.pet, deviceId }); });
+    socket.on('estado', st => {
+      st.jogadores.forEach(j => { if (j.id !== meuId) addOutro(j); });
+      document.getElementById('badge-online').textContent = st.jogadores.length + ' online';
+      initVoz(socket, meuId);
+      (st.construcoes || []).forEach(aplicarConstrucaoRemota);
+    });
     socket.on('entrou', j => { addOutro(j); toast(j.nome + ' chegou!'); });
     socket.on('saiu', ({ id }) => { if (outros[id]) { scene.remove(outros[id].mesh); delete outros[id]; } });
     socket.on('moveu', d => { if (outros[d.id]) Object.assign(outros[d.id], { tx: d.x, ty: d.y, tz: d.z, tr: d.rot }); });
     socket.on('evento', ev => { if (ev.tipo === 'emote') toast('Alguém está se divertindo! 🎉'); });
     socket.on('erro', ({ msg }) => alert(msg));
+    // Progresso salvo no servidor (moedas/itens/aparência) — só chega algo aqui
+    // quando o banco de dados está configurado e já existe progresso salvo para
+    // este dispositivo (ex: reabrindo o jogo depois de limpar o navegador não
+    // ajuda, mas trocar de aba ou reconectar sim).
+    socket.on('progresso', p => {
+      if (!p) return;
+      let mudouAvatar = false;
+      if (typeof p.moedas === 'number') moedas = p.moedas;
+      if (Array.isArray(p.comprados)) { comprados.clear(); p.comprados.forEach(id => comprados.add(id)); }
+      if (p.avatar && typeof p.avatar === 'object' && Object.keys(p.avatar).length) { Object.assign(sessao, p.avatar); mudouAvatar = true; }
+      atualizarMoedas();
+      if (mudouAvatar) rebuildPlayer(); else salvarProgresso();
+    });
+    // Construções de outros jogadores/sessões anteriores nesta mesma sala —
+    // chega ao trocar de zona (resposta a 'trocar-jogo') ou em tempo real quando
+    // alguém constrói algo enquanto você está na mesma zona.
+    socket.on('construcoes', ({ jogo, itens }) => { if (jogo === jogoAtual && Array.isArray(itens)) itens.forEach(aplicarConstrucaoRemota); });
+    socket.on('construiu', ({ jogo, item }) => { if (jogo === jogoAtual) aplicarConstrucaoRemota(item); });
+
+    // Ao fechar a aba / trocar de app, manda o progresso na hora em vez de
+    // esperar o atraso normal — evita perder as últimas moedas coletadas.
+    window.addEventListener('pagehide', enviarProgressoServidorAgora);
+    document.addEventListener('visibilitychange', () => { if (document.hidden) enviarProgressoServidorAgora(); });
 
     irPara('casa'); loop();
     toast('Apartamento Angela v2 - toque no chao para andar!');

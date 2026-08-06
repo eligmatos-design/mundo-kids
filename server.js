@@ -6,6 +6,8 @@ const path = require('path');
 const os = require('os');
 const fs = require('fs');
 
+const db = require('./server/db');
+
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: '*' } });
@@ -20,7 +22,7 @@ function carregarMundos() {
     if (!fs.existsSync(WORLDS_FILE)) return;
     const dados = JSON.parse(fs.readFileSync(WORLDS_FILE, 'utf8'));
     Object.entries(dados).forEach(([code, w]) => {
-      worlds.set(code, { ...w, jogadores: new Map() });
+      worlds.set(code, { ...w, jogadores: new Map(), construcoes: w.construcoes || {} });
     });
     console.log('  Mundos carregados:', worlds.size);
   } catch (e) {
@@ -28,12 +30,14 @@ function carregarMundos() {
   }
 }
 
+// Salva a lista de mundos no arquivo local do servidor (rápido, sempre disponível
+// enquanto o servidor está de pé — mas não garantido entre redeploys no Render grátis).
 function salvarMundos() {
   try {
     if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
     const dados = {};
     worlds.forEach((w, code) => {
-      dados[code] = { code: w.code, nome: w.nome, pin: w.pin, max: w.max, voz: w.voz, criado: w.criado };
+      dados[code] = { code: w.code, nome: w.nome, pin: w.pin, max: w.max, voz: w.voz, criado: w.criado, construcoes: w.construcoes || {} };
     });
     fs.writeFileSync(WORLDS_FILE, JSON.stringify(dados, null, 2));
   } catch (e) {
@@ -41,7 +45,42 @@ function salvarMundos() {
   }
 }
 
+// Além do arquivo local, agenda (com atraso, para não sobrecarregar o banco a cada
+// bloco colocado) um salvamento durável no MongoDB — só roda de verdade se
+// MONGODB_URI estiver configurado; caso contrário db.salvarMundo() não faz nada.
+const _timersMundo = {};
+function agendarSalvarMundo(code) {
+  salvarMundos();
+  if (!db.disponivel()) return;
+  clearTimeout(_timersMundo[code]);
+  _timersMundo[code] = setTimeout(() => {
+    const w = worlds.get(code);
+    if (!w) return;
+    db.salvarMundo(code, { nome: w.nome, pin: w.pin, max: w.max, voz: w.voz, criado: w.criado, construcoes: w.construcoes || {} });
+  }, 3000);
+}
+
+// Na primeira vez que alguém entra num mundo nesta execução do servidor, tenta
+// puxar do MongoDB uma versão mais completa/recente (ex: depois de um redeploy,
+// quando o arquivo local pode ter sido resetado). Não sobrescreve nada se o
+// banco não estiver configurado ou não tiver esse mundo ainda.
+async function garantirMundoAtualizado(code) {
+  const w = worlds.get(code);
+  if (!w || w._carregadoDB || !db.disponivel()) return;
+  w._carregadoDB = true;
+  try {
+    const doc = await db.carregarMundo(code);
+    if (doc) {
+      w.nome = doc.nome || w.nome;
+      w.construcoes = { ...(doc.construcoes || {}), ...w.construcoes };
+    }
+  } catch (e) { /* já logado dentro de db.js */ }
+}
+
 carregarMundos();
+db.conectar().then(ok => {
+  if (!db.disponivel()) console.log('  Banco de dados: não configurado (progresso fica só no navegador/arquivo local) — veja MONGODB_URI.');
+}).catch(() => {});
 
 function getLocalIP() {
   const nets = os.networkInterfaces();
@@ -102,10 +141,10 @@ function enviarArquivo(res, caminhos) {
   for (const p of caminhos) {
     if (p && fs.existsSync(p)) {
       let tipo = 'application/octet-stream; charset=utf-8';
-              if (p.endsWith('.html')) tipo = 'text/html; charset=utf-8';
-              else if (p.endsWith('.css')) tipo = 'text/css; charset=utf-8';
-              else if (p.endsWith('.js')) tipo = 'application/javascript; charset=utf-8';
-              res.set('Content-Type', tipo);
+      if (p.endsWith('.html')) tipo = 'text/html; charset=utf-8';
+      else if (p.endsWith('.css')) tipo = 'text/css; charset=utf-8';
+      else if (p.endsWith('.js')) tipo = 'application/javascript; charset=utf-8';
+      res.set('Content-Type', tipo);
       return res.sendFile(p);
     }
   }
@@ -190,7 +229,8 @@ app.post('/api/mundo/criar', (req, res) => {
     jogadores: new Map(),
     max: 8,
     voz: true,
-    criado: Date.now()
+    criado: Date.now(),
+    construcoes: {}
   });
   salvarMundos();
   res.json({ code, nome });
@@ -214,13 +254,19 @@ io.on('connection', (socket) => {
     socket.on(ev, () => socket.emit('erro', { msg: 'Sem chat! Use o botão de voz 🎤' }));
   });
 
-  socket.on('entrar', ({ code, nome, cor, pet, chapeu, cabelo }) => {
+  let deviceId = null;
+
+  socket.on('entrar', async ({ code, nome, cor, pet, chapeu, cabelo, deviceId: devId }) => {
     code = String(code || '').toUpperCase().trim();
     const w = worlds.get(code);
     if (!w) return socket.emit('erro', { msg: 'Mundo não encontrado.' });
     if (w.jogadores.size >= w.max) return socket.emit('erro', { msg: 'Mundo cheio.' });
 
     mundo = code;
+    deviceId = typeof devId === 'string' ? devId.slice(0, 80) : null;
+
+    await garantirMundoAtualizado(code);
+
     const jogador = {
       id: socket.id,
       nome: cleanName(nome),
@@ -236,9 +282,54 @@ io.on('connection', (socket) => {
 
     socket.emit('estado', {
       jogadores: [...w.jogadores.values()],
-      mundo: { nome: w.nome, code, voz: w.voz }
+      mundo: { nome: w.nome, code, voz: w.voz },
+      construcoes: (w.construcoes && w.construcoes[jogador.jogo]) || []
     });
     socket.to(code).emit('entrou', jogador);
+
+    // Progresso do jogador (moedas/itens/aparência) salvo no banco, se configurado —
+    // devolve para o navegador restaurar, útil quando o cache local foi limpo ou
+    // a criança está jogando de outro aparelho com o mesmo dispositivo salvo.
+    if (deviceId && db.disponivel()) {
+      const progresso = await db.carregarJogador(deviceId);
+      if (progresso) {
+        socket.emit('progresso', { moedas: progresso.moedas, comprados: progresso.comprados, avatar: progresso.avatar });
+      }
+    }
+  });
+
+  socket.on('salvar-progresso', (dados) => {
+    if (!dados || !dados.deviceId) return;
+    db.salvarJogador(String(dados.deviceId).slice(0, 80), {
+      moedas: Number.isFinite(dados.moedas) ? dados.moedas : 0,
+      comprados: Array.isArray(dados.comprados) ? dados.comprados.slice(0, 200).map(String) : [],
+      avatar: dados.avatar && typeof dados.avatar === 'object' ? dados.avatar : {}
+    });
+  });
+
+  // Construção do mundo (móveis extras na Casa, blocos na Cidade): guarda no
+  // mundo em memória, replica em tempo real para quem mais estiver na sala, e
+  // agenda salvar (arquivo local + banco, se configurado) para sobreviver a
+  // reload/redeploy.
+  socket.on('construir', ({ jogo, item } = {}) => {
+    if (!mundo || !jogo || !item) return;
+    const w = worlds.get(mundo);
+    if (!w) return;
+    w.construcoes = w.construcoes || {};
+    const lista = w.construcoes[jogo] = w.construcoes[jogo] || [];
+    if (lista.length >= 300) return; // limite de segurança por zona
+
+    const clamp = (n) => Math.max(-200, Math.min(200, Number(n) || 0));
+    const itemLimpo = {
+      tipo: item.tipo === 'bloco' ? 'bloco' : 'movel',
+      modelo: String(item.modelo || '').slice(0, 40),
+      x: clamp(item.x), y: clamp(item.y), z: clamp(item.z)
+    };
+    if (item.nivel != null) itemLimpo.nivel = Math.max(0, Math.min(20, Number(item.nivel) || 0));
+
+    lista.push(itemLimpo);
+    socket.to(mundo).emit('construiu', { jogo, item: itemLimpo });
+    agendarSalvarMundo(mundo);
   });
 
   socket.on('mover', (d) => {
@@ -262,6 +353,7 @@ io.on('connection', (socket) => {
     j.jogo = jogo;
     j.x = 0; j.y = 1; j.z = 0;
     socket.to(mundo).emit('trocou-jogo', { id: socket.id, jogo, nome: j.nome });
+    socket.emit('construcoes', { jogo, itens: (w.construcoes && w.construcoes[jogo]) || [] });
   });
 
   // WebRTC voz
