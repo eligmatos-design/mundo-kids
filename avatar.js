@@ -54,9 +54,12 @@
     };
     const o = configs[tipo] || configs.grande;
     const olhos = [];
-    [[-0.17, o.y, o.z], [0.17, o.y, o.z]].forEach(([x, y, z]) => {
+    [[-0.17, o.y, o.z - 0.05], [0.17, o.y, o.z - 0.05]].forEach(([x, y, z]) => {
       const grupoOlho = new THREE.Group();
       grupoOlho.position.set(x, y, z);
+      // Achata o olho no eixo de profundidade (Z) para encaixar rente a curva da
+      // cabeca, em vez de ficar uma bolinha branca saltando pra fora do rosto.
+      grupoOlho.scale.set(1, 1, 0.55);
       grupoOlho.add(mesh(new THREE.SphereGeometry(o.branco, 10, 8), 0xffffff, 0, 0, 0));
       grupoOlho.add(mesh(new THREE.SphereGeometry(o.iris, 8, 6), corIris, 0.01, 0, 0.04));
       grupoOlho.add(mesh(new THREE.SphereGeometry(o.pupila, 6, 4), 0x111111, 0.02, 0, 0.07));
@@ -128,14 +131,15 @@
         g.add(mesh(new THREE.ConeGeometry(0.09, 0.38, 4), cc, Math.cos(a) * 0.3, 1.7, Math.sin(a) * 0.3));
       }
     } else if (estilo === 'longo') {
-      g.add(mesh(new THREE.SphereGeometry(0.58, 12, 8, 0, Math.PI * 2, 0, Math.PI * 0.65), cc, 0, 1.3, -0.05));
+      // thetaLength reduzido para a calota parar acima das sobrancelhas, sem cobrir o rosto
+      g.add(mesh(new THREE.SphereGeometry(0.58, 12, 8, 0, Math.PI * 2, 0, Math.PI * 0.36), cc, 0, 1.3, -0.05));
       g.add(mesh(new THREE.BoxGeometry(0.55, 0.7, 0.18), cc, 0, 0.9, -0.38));
       [[-0.22, 0.85, -0.32], [0.22, 0.85, -0.32]].forEach(([x, y, z]) => {
         g.add(mesh(new THREE.CylinderGeometry(0.08, 0.06, 0.55, 6), cc, x, y, z));
       });
     } else if (estilo === 'mega') {
-      // Cabelo grande estilo boneca
-      g.add(mesh(new THREE.SphereGeometry(0.62, 14, 10, 0, Math.PI * 2, 0, Math.PI * 0.7), cc, 0, 1.32, -0.02));
+      // Cabelo grande estilo boneca — thetaLength reduzido para nao cobrir o rosto
+      g.add(mesh(new THREE.SphereGeometry(0.62, 14, 10, 0, Math.PI * 2, 0, Math.PI * 0.38), cc, 0, 1.32, -0.02));
       for (let i = -3; i <= 3; i++) {
         g.add(mesh(new THREE.CylinderGeometry(0.1, 0.07, 0.9, 6), cc, i * 0.14, 0.75, -0.35 - Math.abs(i) * 0.05));
       }
@@ -149,12 +153,12 @@
         }
       }
     } else if (estilo === 'rabo') {
-      g.add(mesh(new THREE.SphereGeometry(0.55, 10, 8, 0, Math.PI * 2, 0, Math.PI * 0.55), cc, 0, 1.35, 0));
+      g.add(mesh(new THREE.SphereGeometry(0.55, 10, 8, 0, Math.PI * 2, 0, Math.PI * 0.4), cc, 0, 1.35, 0));
       const rabo = mesh(new THREE.CylinderGeometry(0.1, 0.08, 0.5, 6), cc, 0, 1.5, -0.35);
       rabo.rotation.x = -0.8; g.add(rabo);
       g.add(mesh(new THREE.SphereGeometry(0.12, 6, 4), cc, 0, 1.85, -0.55));
     } else if (estilo === 'tranca') {
-      g.add(mesh(new THREE.SphereGeometry(0.55, 10, 8, 0, Math.PI * 2, 0, Math.PI * 0.55), cc, 0, 1.35, 0));
+      g.add(mesh(new THREE.SphereGeometry(0.55, 10, 8, 0, Math.PI * 2, 0, Math.PI * 0.4), cc, 0, 1.35, 0));
       [[-0.2, 1.1, -0.25], [0.2, 1.1, -0.25]].forEach(([x, y, z]) => {
         for (let i = 0; i < 4; i++) {
           const t = mesh(new THREE.TorusGeometry(0.07, 0.03, 4, 6, Math.PI), cc, x, y - i * 0.12, z - i * 0.04);
